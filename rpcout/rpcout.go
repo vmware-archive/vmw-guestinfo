@@ -3,22 +3,12 @@ package rpcout
 import (
 	"errors"
 	"fmt"
-	"unsafe"
 
 	"github.com/golang/glog"
+	"github.com/sigma/vmw-guestinfo/message"
 )
 
-/*
-#cgo LDFLAGS: /mnt/host/gocode/src/github.com/sigma/vmw-guestinfo/libs/libvmtools.a /usr/lib/x86_64-linux-gnu/libglib-2.0.a
-#include <stdlib.h>
-typedef struct Message_Channel Message_Channel;
-extern Message_Channel* Message_Open(int proto);
-extern int Message_Close(Message_Channel *chan);
-extern int Message_Send(Message_Channel *chan, const char *buf, int bugSize);
-extern int Message_Receive(Message_Channel *chan, char **buf, int *bugSize);
-int RPCI_PROTOCOL_NUM = 0x49435052;
-*/
-import "C"
+const RPCI_PROTOCOL_NUM int = 0x49435052
 
 func SendOne(format string, a ...interface{}) (string, error) {
 	request := fmt.Sprintf(format, a...)
@@ -54,48 +44,41 @@ func SendOneRaw(request string) (string, error) {
 }
 
 type RpcOut struct {
-	channel *C.struct_Message_Channel
+	channel message.Channel
 }
 
 func (out *RpcOut) Start() error {
-	channel := C.Message_Open(C.RPCI_PROTOCOL_NUM)
-	if channel == nil {
-		return errors.New("could not open channel with RPCI protocol")
+	channel, err := message.Open(RPCI_PROTOCOL_NUM)
+	if err != nil {
+		return errors.New("Could not open channel with RPCI protocol")
 	}
 	out.channel = channel
 	return nil
 }
 
 func (out *RpcOut) Stop() error {
-	status := C.Message_Close(out.channel)
-	if status == 0 {
-		return errors.New("could not close channel")
-	}
+	err := message.Close(out.channel)
 	out.channel = nil
-	return nil
+	return err
 }
 
 func (out *RpcOut) Send(request string) (string, error) {
-	status := C.Message_Send(out.channel, C.CString(request),
-		C.int(len(request)+1))
-	if status == 0 {
-		return "", errors.New("Unable to send the RPCI command")
+	err := message.Send(out.channel, request)
+	if err != nil {
+		return "", err
 	}
 
-	var reply *C.char
-	var reply_len C.int
-	defer C.free(unsafe.Pointer(reply))
-	status = C.Message_Receive(out.channel, &reply, &reply_len)
-	if status == 0 {
-		return "", errors.New("Unable to receive the result of the RPCI command")
+	reply, err := message.Receive(out.channel)
+	if err != nil {
+		return "", err
 	}
 
 	valid := true
 	resp := ""
-	if reply_len < 2 {
+	if len(reply) < 2 {
 		valid = false
 	} else {
-		resp = C.GoString(reply)
+		resp = reply
 		prefix := resp[:2]
 
 		if prefix == "1 " {
