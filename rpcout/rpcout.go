@@ -3,7 +3,9 @@ package rpcout
 import (
 	"errors"
 	"fmt"
-	"log"
+	"unsafe"
+
+	"github.com/golang/glog"
 )
 
 /*
@@ -25,7 +27,7 @@ func SendOne(format string, a ...interface{}) (string, error) {
 
 func SendOneRaw(request string) (string, error) {
 	var reply string
-	log.Println("Rpci: Sending request='%s'", request)
+	glog.Infof("Rpci: Sending request='%s'", request)
 
 	status := false
 
@@ -40,12 +42,12 @@ func SendOneRaw(request string) (string, error) {
 		}
 	}
 
-	log.Println("Rpci: Sent request='%s', reply='%s', status=%t",
+	glog.Infof("Rpci: Sent request='%s', reply='%s', status=%t",
 		request, reply, status)
 
 	err = out.Stop()
 	if err != nil {
-		log.Println("Rpci: unablt to close the communication channel")
+		glog.Infof("Rpci: unable to close the communication channel")
 	}
 
 	return reply, err
@@ -82,6 +84,7 @@ func (out *RpcOut) Send(request string) (string, error) {
 
 	var reply *C.char
 	var reply_len C.int
+	defer C.free(unsafe.Pointer(reply))
 	status = C.Message_Receive(out.channel, &reply, &reply_len)
 	if status == 0 {
 		return "", errors.New("Unable to receive the result of the RPCI command")
