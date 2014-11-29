@@ -10,10 +10,10 @@ import (
 
 func ConfigGetString(key string, default_value string) string {
 	out, _ := rpcout.SendOne("info-get guestinfo.%s", key)
-	if out == "" {
+	if len(out) == 0 {
 		return default_value
 	}
-	return out
+	return string(out)
 }
 
 func ConfigGetBool(key string, default_value bool) bool {

@@ -28,8 +28,8 @@ func Close(c Channel) error {
 	return nil
 }
 
-func Send(c Channel, request string) error {
-	buffer := (*C.uchar)(unsafe.Pointer(C.CString(request)))
+func Send(c Channel, request []byte) error {
+	buffer := (*C.uchar)(unsafe.Pointer(&request[0]))
 	status := C.Message_Send(c, buffer, (C.size_t)(C.int(len(request)+1)))
 	if status == 0 {
 		return errors.New("Unable to send the RPCI command")
@@ -37,15 +37,15 @@ func Send(c Channel, request string) error {
 	return nil
 }
 
-func Receive(c Channel) (string, error) {
+func Receive(c Channel) ([]byte, error) {
 	var reply *C.uchar
 	var reply_len C.size_t
 	defer C.free(unsafe.Pointer(reply))
 
 	status := C.Message_Receive(c, &reply, &reply_len)
 	if status == 0 {
-		return "", errors.New("Unable to receive the result of the RPCI command")
+		return make([]byte, 0), errors.New("Unable to receive the result of the RPCI command")
 	}
 
-	return C.GoString((*C.char)(unsafe.Pointer(reply))), nil
+	return C.GoBytes(unsafe.Pointer(reply), (C.int)(reply_len)), nil
 }

@@ -1,6 +1,7 @@
 package rpcout
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 
@@ -10,13 +11,13 @@ import (
 
 const RPCI_PROTOCOL_NUM int = 0x49435052
 
-func SendOne(format string, a ...interface{}) (string, error) {
+func SendOne(format string, a ...interface{}) ([]byte, error) {
 	request := fmt.Sprintf(format, a...)
-	return SendOneRaw(request)
+	return SendOneRaw([]byte(request))
 }
 
-func SendOneRaw(request string) (string, error) {
-	var reply string
+func SendOneRaw(request []byte) ([]byte, error) {
+	var reply []byte
 	glog.Infof("Rpci: Sending request='%s'", request)
 
 	status := false
@@ -24,7 +25,7 @@ func SendOneRaw(request string) (string, error) {
 	out := &RpcOut{}
 	err := out.Start()
 	if err != nil {
-		reply = "RpcOut: Unable to open the communication channel"
+		reply = []byte("RpcOut: Unable to open the communication channel")
 	} else {
 		reply, err = out.Send(request)
 		if err != nil {
@@ -62,29 +63,29 @@ func (out *RpcOut) Stop() error {
 	return err
 }
 
-func (out *RpcOut) Send(request string) (string, error) {
+func (out *RpcOut) Send(request []byte) ([]byte, error) {
+	resp := make([]byte, 0)
 	err := message.Send(out.channel, request)
 	if err != nil {
-		return "", err
+		return resp, err
 	}
 
 	reply, err := message.Receive(out.channel)
 	if err != nil {
-		return "", err
+		return resp, err
 	}
 
 	valid := true
-	resp := ""
 	if len(reply) < 2 {
 		valid = false
 	} else {
 		resp = reply
 		prefix := resp[:2]
 
-		if prefix == "1 " {
+		if bytes.Equal(prefix, []byte("1 ")) {
 			resp = resp[2:]
-		} else if prefix == "0 " {
-			resp = ""
+		} else if bytes.Equal(prefix, []byte("0 ")) {
+			resp = make([]byte, 0)
 		} else {
 			valid = false
 		}
@@ -93,6 +94,6 @@ func (out *RpcOut) Send(request string) (string, error) {
 	if valid {
 		return resp, nil
 	} else {
-		return "", errors.New("Invalid format for the result of the RPCI command")
+		return nil, errors.New("Invalid format for the result of the RPCI command")
 	}
 }
