@@ -1,13 +1,8 @@
 package message
 
 /*
-#cgo LDFLAGS: /mnt/host/gocode/src/github.com/sigma/vmw-guestinfo/libs/libvmtools.a /usr/lib/x86_64-linux-gnu/libglib-2.0.a
 #include <stdlib.h>
-typedef struct Message_Channel Message_Channel;
-extern Message_Channel* Message_Open(int proto);
-extern int Message_Close(Message_Channel *chan);
-extern int Message_Send(Message_Channel *chan, const char *buf, int bugSize);
-extern int Message_Receive(Message_Channel *chan, char **buf, int *bugSize);
+#include "message.h"
 */
 import "C"
 import (
@@ -18,7 +13,7 @@ import (
 type Channel *C.struct_Message_Channel
 
 func Open(proto int) (Channel, error) {
-	channel := C.Message_Open(C.int(proto))
+	channel := C.Message_Open(C.uint32(proto))
 	if channel == nil {
 		return nil, errors.New("Could not open channel")
 	}
@@ -34,8 +29,8 @@ func Close(c Channel) error {
 }
 
 func Send(c Channel, request string) error {
-	status := C.Message_Send(c, C.CString(request),
-		C.int(len(request)+1))
+	buffer := (*C.uchar)(unsafe.Pointer(C.CString(request)))
+	status := C.Message_Send(c, buffer, (C.size_t)(C.int(len(request)+1)))
 	if status == 0 {
 		return errors.New("Unable to send the RPCI command")
 	}
@@ -43,8 +38,8 @@ func Send(c Channel, request string) error {
 }
 
 func Receive(c Channel) (string, error) {
-	var reply *C.char
-	var reply_len C.int
+	var reply *C.uchar
+	var reply_len C.size_t
 	defer C.free(unsafe.Pointer(reply))
 
 	status := C.Message_Receive(c, &reply, &reply_len)
@@ -52,5 +47,5 @@ func Receive(c Channel) (string, error) {
 		return "", errors.New("Unable to receive the result of the RPCI command")
 	}
 
-	return C.GoString(reply), nil
+	return C.GoString((*C.char)(unsafe.Pointer(reply))), nil
 }
