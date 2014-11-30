@@ -31,13 +31,19 @@
  *********************************************************/
 
 /*
- * backdoorGcc.c --
+ * backdoorGcc64.c --
  *
- *      Implements the real work for guest-side backdoor for GCC, 32-bit and
- *      64-bit targets (supports inline ASM, GAS syntax). The asm sections are
- *      marked volatile since vmware can change the registers content without
- *      the compiler knowing it.
+ *      Implements the real work for guest-side backdoor for GCC, 64-bit
+ *      target (supports inline ASM, GAS syntax). The asm sections are marked
+ *      volatile since vmware can change the registers content without the
+ *      compiler knowing it.
  *
+ *      See backdoorGCC32.c (from which this code was mostly copied) for
+ *      details on why the ASM is written this way. Also note that it might be
+ *      possible to write the asm blocks using the symbolic operand specifiers
+ *      in such a way that the same asm would generate correct code for both
+ *      32-bit and 64-bit targets, but I'm too lazy to figure it all out.
+ *      --rrdharan
  */
 #ifdef __cplusplus
 extern "C" {
@@ -67,9 +73,7 @@ extern "C" {
 void
 Backdoor_InOut(Backdoor_proto *myBp) // IN/OUT
 {
-
-#ifdef VM_X86_64
-    uint64 dummy;
+   uint64 dummy;
 
    __asm__ __volatile__(
 #ifdef __APPLE__
@@ -111,45 +115,6 @@ Backdoor_InOut(Backdoor_proto *myBp) // IN/OUT
 #endif
       "rcx", "rdx", "rsi", "rdi", "memory"
    );
-#else /* VM_X86_64 */
-   uint32 dummy;
-
-   __asm__ __volatile__(
-#ifdef __PIC__
-        "pushl %%ebx"           "\n\t"
-#endif
-        "pushl %%eax"           "\n\t"
-        "movl 20(%%eax), %%edi" "\n\t"
-        "movl 16(%%eax), %%esi" "\n\t"
-        "movl 12(%%eax), %%edx" "\n\t"
-        "movl  8(%%eax), %%ecx" "\n\t"
-        "movl  4(%%eax), %%ebx" "\n\t"
-        "movl   (%%eax), %%eax" "\n\t"
-        "inl %%dx, %%eax"       "\n\t"
-        "xchgl %%eax, (%%esp)"  "\n\t"
-        "movl %%edi, 20(%%eax)" "\n\t"
-        "movl %%esi, 16(%%eax)" "\n\t"
-        "movl %%edx, 12(%%eax)" "\n\t"
-        "movl %%ecx,  8(%%eax)" "\n\t"
-        "movl %%ebx,  4(%%eax)" "\n\t"
-        "popl          (%%eax)" "\n\t"
-#ifdef __PIC__
-        "popl %%ebx"            "\n\t"
-#endif
-      : "=a" (dummy)
-      : "0" (myBp)
-      /*
-       * vmware can modify the whole VM state without the compiler knowing
-       * it. So far it does not modify EFLAGS. --hpreg
-       */
-      :
-#ifndef __PIC__
-        "ebx",
-#endif
-        "ecx", "edx", "esi", "edi", "memory"
-   );
-
-#endif
 }
 
 
@@ -174,8 +139,7 @@ Backdoor_InOut(Backdoor_proto *myBp) // IN/OUT
 void
 BackdoorHbIn(Backdoor_proto_hb *myBp) // IN/OUT
 {
-#ifdef VM_X86_64
-    uint64 dummy;
+   uint64 dummy;
 
    __asm__ __volatile__(
         "pushq %%rbp"           "\n\t"
@@ -222,59 +186,13 @@ BackdoorHbIn(Backdoor_proto_hb *myBp) // IN/OUT
 #endif
       "rcx", "rdx", "rsi", "rdi", "memory", "cc"
    );
-#else /* VM_X86_64 */
-   uint32 dummy;
-
-   __asm__ __volatile__(
-#ifdef __PIC__
-        "pushl %%ebx"           "\n\t"
-#endif
-        "pushl %%ebp"           "\n\t"
-
-        "pushl %%eax"           "\n\t"
-        "movl 24(%%eax), %%ebp" "\n\t"
-        "movl 20(%%eax), %%edi" "\n\t"
-        "movl 16(%%eax), %%esi" "\n\t"
-        "movl 12(%%eax), %%edx" "\n\t"
-        "movl  8(%%eax), %%ecx" "\n\t"
-        "movl  4(%%eax), %%ebx" "\n\t"
-        "movl   (%%eax), %%eax" "\n\t"
-        "cld"                   "\n\t"
-        "rep; insb"             "\n\t"
-        "xchgl %%eax, (%%esp)"  "\n\t"
-        "movl %%ebp, 24(%%eax)" "\n\t"
-        "movl %%edi, 20(%%eax)" "\n\t"
-        "movl %%esi, 16(%%eax)" "\n\t"
-        "movl %%edx, 12(%%eax)" "\n\t"
-        "movl %%ecx,  8(%%eax)" "\n\t"
-        "movl %%ebx,  4(%%eax)" "\n\t"
-        "popl          (%%eax)" "\n\t"
-
-        "popl %%ebp"            "\n\t"
-#ifdef __PIC__
-        "popl %%ebx"            "\n\t"
-#endif
-      : "=a" (dummy)
-      : "0" (myBp)
-      /*
-       * vmware can modify the whole VM state without the compiler knowing
-       * it. --hpreg
-       */
-      : 
-#ifndef __PIC__
-        "ebx", 
-#endif
-        "ecx", "edx", "esi", "edi", "memory", "cc"
-   );
-#endif
 }
 
 
 void
 BackdoorHbOut(Backdoor_proto_hb *myBp) // IN/OUT
 {
-#ifdef VM_X86_64
-    uint64 dummy;
+   uint64 dummy;
 
    __asm__ __volatile__(
         "pushq %%rbp"           "\n\t"
@@ -317,48 +235,6 @@ BackdoorHbOut(Backdoor_proto_hb *myBp) // IN/OUT
 #endif
       "rcx", "rdx", "rsi", "rdi", "memory", "cc"
    );
-#else /* VM_X86_64 */
-   uint32 dummy;
-
-   __asm__ __volatile__(
-#ifdef __PIC__
-        "pushl %%ebx"           "\n\t"
-#endif
-        "pushl %%ebp"           "\n\t"
-
-        "pushl %%eax"           "\n\t"
-        "movl 24(%%eax), %%ebp" "\n\t"
-        "movl 20(%%eax), %%edi" "\n\t"
-        "movl 16(%%eax), %%esi" "\n\t"
-        "movl 12(%%eax), %%edx" "\n\t"
-        "movl  8(%%eax), %%ecx" "\n\t"
-        "movl  4(%%eax), %%ebx" "\n\t"
-        "movl   (%%eax), %%eax" "\n\t"
-        "cld"                   "\n\t"
-        "rep; outsb"            "\n\t"
-        "xchgl %%eax, (%%esp)"  "\n\t"
-        "movl %%ebp, 24(%%eax)" "\n\t"
-        "movl %%edi, 20(%%eax)" "\n\t"
-        "movl %%esi, 16(%%eax)" "\n\t"
-        "movl %%edx, 12(%%eax)" "\n\t"
-        "movl %%ecx,  8(%%eax)" "\n\t"
-        "movl %%ebx,  4(%%eax)" "\n\t"
-        "popl          (%%eax)" "\n\t"
-
-        "popl %%ebp"            "\n\t"
-#ifdef __PIC__
-        "popl %%ebx"            "\n\t"
-#endif
-      : "=a" (dummy)
-      : "0" (myBp)
-      :
-#ifndef __PIC__
-        "ebx",
-#endif
-        "ecx", "edx", "esi", "edi", "memory", "cc"
-   );
-
-#endif
 }
 
 
