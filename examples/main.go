@@ -9,8 +9,10 @@ import (
 
 func main() {
 	if !vmcheck.IsVirtualWorld() {
+		fmt.Println("not in a virtual world... :(")
 		return
 	}
+
 	s1 := rpcvmx.ConfigGetString("foo", "foo")
 	s2 := rpcvmx.ConfigGetString("bar", "foo")
 	fmt.Println(s1)
