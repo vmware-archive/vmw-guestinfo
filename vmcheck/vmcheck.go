@@ -1,11 +1,9 @@
 package vmcheck
 
-/*
-#cgo CFLAGS: -I../include
-#include <stdlib.h>
-*/
-import "C"
+import (
+	"github.com/sigma/vmw-guestinfo/bridge"
+)
 
 func IsVirtualWorld() bool {
-	return true
+	return bridge.VmCheckIsVirtualWorld()
 }

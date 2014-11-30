@@ -9,7 +9,7 @@ import (
 	"github.com/sigma/vmw-guestinfo/message"
 )
 
-const RPCI_PROTOCOL_NUM int = 0x49435052
+const RPCI_PROTOCOL_NUM uint32 = 0x49435052
 
 func SendOne(format string, a ...interface{}) ([]byte, error) {
 	request := fmt.Sprintf(format, a...)
