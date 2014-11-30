@@ -1,6 +1,7 @@
 package message
 
 /*
+#cgo CFLAGS: -I../include
 #include <stdlib.h>
 #include "message.h"
 */
