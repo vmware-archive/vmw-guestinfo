@@ -13,8 +13,9 @@ func main() {
 		return
 	}
 
-	s1 := rpcvmx.ConfigGetString("foo", "foo")
-	s2 := rpcvmx.ConfigGetString("bar", "foo")
-	fmt.Println(s1)
-	fmt.Println(s2)
+	version, typ := vmcheck.GetVersion()
+	fmt.Println(version, typ)
+
+	fmt.Println(rpcvmx.ConfigGetString("foo", "foo"))
+	fmt.Println(rpcvmx.ConfigGetString("bar", "foo"))
 }

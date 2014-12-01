@@ -44,3 +44,10 @@ func MessageReceive(c MessageChannel) ([]byte, bool) {
 func VmCheckIsVirtualWorld() bool {
 	return C.VmCheck_IsVirtualWorld() != 0
 }
+
+func VmCheckGetVersion() (uint32, uint32) {
+	var version C.uint32
+	var typ C.uint32
+	C.VmCheck_GetVersion(&version, &typ)
+	return uint32(version), uint32(typ)
+}
