@@ -11,17 +11,17 @@ var ErrRpciFormat = errors.New("invalid format for RPCI command result")
 
 const RPCI_PROTOCOL_NUM uint32 = 0x49435052
 
-func SendOne(format string, a ...interface{}) (reply []byte, err error) {
+func SendOne(format string, a ...interface{}) (reply []byte, ok bool, err error) {
 	request := fmt.Sprintf(format, a...)
 	return SendOneRaw([]byte(request))
 }
 
-func SendOneRaw(request []byte) (reply []byte, err error) {
+func SendOneRaw(request []byte) (reply []byte, ok bool, err error) {
 	out := &RpcOut{}
 	if err = out.Start(); err != nil {
 		return
 	}
-	if reply, err = out.Send(request); err != nil {
+	if reply, ok, err = out.Send(request); err != nil {
 		return
 	}
 	if err = out.Stop(); err != nil {
@@ -49,7 +49,7 @@ func (out *RpcOut) Stop() error {
 	return err
 }
 
-func (out *RpcOut) Send(request []byte) (reply []byte, err error) {
+func (out *RpcOut) Send(request []byte) (reply []byte, ok bool, err error) {
 	if err = message.Send(out.channel, request); err != nil {
 		return
 	}
@@ -61,9 +61,10 @@ func (out *RpcOut) Send(request []byte) (reply []byte, err error) {
 
 	switch string(resp[:2]) {
 	case "0 ":
-		err = fmt.Errorf("RPCI error: %s", resp[2:])
+		reply = resp[2:]
 	case "1 ":
 		reply = resp[2:]
+		ok = true
 	default:
 		err = ErrRpciFormat
 	}
