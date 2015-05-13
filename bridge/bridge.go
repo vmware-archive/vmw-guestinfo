@@ -26,7 +26,7 @@ func MessageClose(c MessageChannel) bool {
 
 func MessageSend(c MessageChannel, request []byte) bool {
 	buffer := (*C.uchar)(unsafe.Pointer(&request[0]))
-	status := C.Message_Send(c, buffer, (C.size_t)(C.int(len(request)+1)))
+	status := C.Message_Send(c, buffer, (C.size_t)(C.int(len(request))))
 	return status != 0
 }
 
