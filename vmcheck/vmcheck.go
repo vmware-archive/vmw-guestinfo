@@ -8,6 +8,6 @@ func IsVirtualWorld() bool {
 	return bridge.VmCheckIsVirtualWorld()
 }
 
-func GetVersion() (uint32, uint32) {
+func GetVersion() (version uint32, typ uint32) {
 	return bridge.VmCheckGetVersion()
 }
