@@ -1,47 +1,33 @@
 package rpcout
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/sigma/vmw-guestinfo/message"
 )
 
+var ErrRpciFormat = errors.New("invalid format for RPCI command result")
+
 const RPCI_PROTOCOL_NUM uint32 = 0x49435052
 
-func SendOne(format string, a ...interface{}) ([]byte, error) {
+func SendOne(format string, a ...interface{}) (reply []byte, err error) {
 	request := fmt.Sprintf(format, a...)
 	return SendOneRaw([]byte(request))
 }
 
-func SendOneRaw(request []byte) ([]byte, error) {
-	var reply []byte
-	glog.Infof("Rpci: Sending request='%s'", request)
-
-	status := false
-
+func SendOneRaw(request []byte) (reply []byte, err error) {
 	out := &RpcOut{}
-	err := out.Start()
-	if err != nil {
-		reply = []byte("RpcOut: Unable to open the communication channel")
-	} else {
-		reply, err = out.Send(request)
-		if err != nil {
-			status = true
-		}
+	if err = out.Start(); err != nil {
+		return
 	}
-
-	glog.Infof("Rpci: Sent request='%s', reply='%s', status=%t",
-		request, reply, status)
-
-	err = out.Stop()
-	if err != nil {
-		glog.Infof("Rpci: unable to close the communication channel")
+	if reply, err = out.Send(request); err != nil {
+		return
 	}
-
-	return reply, err
+	if err = out.Stop(); err != nil {
+		return
+	}
+	return
 }
 
 type RpcOut struct {
@@ -51,7 +37,7 @@ type RpcOut struct {
 func (out *RpcOut) Start() error {
 	channel, err := message.Open(RPCI_PROTOCOL_NUM)
 	if err != nil {
-		return errors.New("Could not open channel with RPCI protocol")
+		return err
 	}
 	out.channel = channel
 	return nil
@@ -63,37 +49,23 @@ func (out *RpcOut) Stop() error {
 	return err
 }
 
-func (out *RpcOut) Send(request []byte) ([]byte, error) {
-	resp := make([]byte, 0)
-	err := message.Send(out.channel, request)
-	if err != nil {
-		return resp, err
+func (out *RpcOut) Send(request []byte) (reply []byte, err error) {
+	if err = message.Send(out.channel, request); err != nil {
+		return
 	}
 
-	reply, err := message.Receive(out.channel)
-	if err != nil {
-		return resp, err
+	var resp []byte
+	if resp, err = message.Receive(out.channel); err != nil {
+		return
 	}
 
-	valid := true
-	if len(reply) < 2 {
-		valid = false
-	} else {
-		resp = reply
-		prefix := resp[:2]
-
-		if bytes.Equal(prefix, []byte("1 ")) {
-			resp = resp[2:]
-		} else if bytes.Equal(prefix, []byte("0 ")) {
-			resp = make([]byte, 0)
-		} else {
-			valid = false
-		}
+	switch string(resp[:2]) {
+	case "0 ":
+		err = fmt.Errorf("RPCI error: %s", resp[2:])
+	case "1 ":
+		reply = resp[2:]
+	default:
+		err = ErrRpciFormat
 	}
-
-	if valid {
-		return resp, nil
-	} else {
-		return nil, errors.New("Invalid format for the result of the RPCI command")
-	}
+	return
 }
