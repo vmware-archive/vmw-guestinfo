@@ -7,17 +7,20 @@ import (
 	"github.com/sigma/vmw-guestinfo/message"
 )
 
+// ErrRpciFormat represents an invalid result format
 var ErrRpciFormat = errors.New("invalid format for RPCI command result")
 
-const RPCI_PROTOCOL_NUM uint32 = 0x49435052
+const rpciProtocolNum uint32 = 0x49435052
 
+// SendOne is a command-oriented wrapper for SendOneRaw
 func SendOne(format string, a ...interface{}) (reply []byte, ok bool, err error) {
 	request := fmt.Sprintf(format, a...)
 	return SendOneRaw([]byte(request))
 }
 
+// SendOneRaw uses a throw-away RPCOut to send a request
 func SendOneRaw(request []byte) (reply []byte, ok bool, err error) {
-	out := &RpcOut{}
+	out := &RPCOut{}
 	if err = out.Start(); err != nil {
 		return
 	}
@@ -30,12 +33,14 @@ func SendOneRaw(request []byte) (reply []byte, ok bool, err error) {
 	return
 }
 
-type RpcOut struct {
-	channel message.Channel
+// RPCOut is an ougoing connection from the VM to the hypervisor
+type RPCOut struct {
+	channel *message.Channel
 }
 
-func (out *RpcOut) Start() error {
-	channel, err := message.Open(RPCI_PROTOCOL_NUM)
+// Start opens the connection
+func (out *RPCOut) Start() error {
+	channel, err := message.NewChannel(rpciProtocolNum)
 	if err != nil {
 		return err
 	}
@@ -43,19 +48,21 @@ func (out *RpcOut) Start() error {
 	return nil
 }
 
-func (out *RpcOut) Stop() error {
-	err := message.Close(out.channel)
+// Stop closes the connection
+func (out *RPCOut) Stop() error {
+	err := out.channel.Close()
 	out.channel = nil
 	return err
 }
 
-func (out *RpcOut) Send(request []byte) (reply []byte, ok bool, err error) {
-	if err = message.Send(out.channel, request); err != nil {
+// Send emits a request and receives a response
+func (out *RPCOut) Send(request []byte) (reply []byte, ok bool, err error) {
+	if err = out.channel.Send(request); err != nil {
 		return
 	}
 
 	var resp []byte
-	if resp, err = message.Receive(out.channel); err != nil {
+	if resp, err = out.channel.Receive(); err != nil {
 		return
 	}
 

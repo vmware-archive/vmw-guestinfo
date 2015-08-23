@@ -8,18 +8,28 @@ import (
 	"github.com/sigma/vmw-guestinfo/rpcout"
 )
 
-func ConfigGetString(key string, default_value string) (string, error) {
+// Config gives access to the vmx config through the VMware backdoor
+type Config struct{}
+
+// NewConfig creates a new Config object
+func NewConfig() *Config {
+	return &Config{}
+}
+
+// GetString returns the config string in the guestinfo.* namespace
+func (c *Config) GetString(key string, defaultValue string) (string, error) {
 	out, ok, err := rpcout.SendOne("info-get guestinfo.%s", key)
 	if err != nil {
 		return "", err
 	} else if !ok {
-		return default_value, nil
+		return defaultValue, nil
 	}
 	return string(out), nil
 }
 
-func ConfigGetBool(key string, default_value bool) (bool, error) {
-	val, err := ConfigGetString(key, fmt.Sprintf("%t", default_value))
+// GetBool returns the config boolean in the guestinfo.* namespace
+func (c *Config) GetBool(key string, defaultValue bool) (bool, error) {
+	val, err := c.GetString(key, fmt.Sprintf("%t", defaultValue))
 	if err != nil {
 		return false, err
 	}
@@ -29,18 +39,19 @@ func ConfigGetBool(key string, default_value bool) (bool, error) {
 	case "false":
 		return false, nil
 	default:
-		return default_value, nil
+		return defaultValue, nil
 	}
 }
 
-func ConfigGetInt(key string, default_value int) (int, error) {
-	val, err := ConfigGetString(key, "")
+// GetInt returns the config integer in the guestinfo.* namespace
+func (c *Config) GetInt(key string, defaultValue int) (int, error) {
+	val, err := c.GetString(key, "")
 	if err != nil {
 		return 0, err
 	}
 	res, err := strconv.Atoi(val)
 	if err != nil {
-		return default_value, nil
+		return defaultValue, nil
 	}
 	return res, nil
 }

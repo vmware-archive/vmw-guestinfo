@@ -4,10 +4,12 @@ import (
 	"github.com/sigma/vmw-guestinfo/bridge"
 )
 
+// IsVirtualWorld returns whether the code is running in a VMware virtual machine or no
 func IsVirtualWorld() bool {
-	return bridge.VmCheckIsVirtualWorld()
+	return bridge.VMCheckIsVirtualWorld()
 }
 
+// GetVersion returns the hypervisor version
 func GetVersion() (version uint32, typ uint32) {
-	return bridge.VmCheckGetVersion()
+	return bridge.VMCheckGetVersion()
 }
