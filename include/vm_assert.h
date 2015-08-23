@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,9 +26,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of VMware Inc. nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission of VMware Inc.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -63,8 +60,8 @@
  *
  *	The basic assertion facility for all VMware code.
  *
- *	For proper use, see
- *	http://vmweb.vmware.com/~mts/WebSite/guide/programming/asserts.html
+ *      For proper use, see bora/doc/assert and
+ *      http://vmweb.vmware.com/~mts/WebSite/guide/programming/asserts.html.
  */
 
 #ifndef _VM_ASSERT_H_
@@ -72,7 +69,6 @@
 
 // XXX not necessary except some places include vm_assert.h improperly
 #include "vm_basic_types.h"
-#include "vm_basic_defs.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -98,40 +94,30 @@ extern "C" {
 
 #if defined VMKPANIC
 
-// vmkernel Panic() function does not want a trailing newline.
-#define _ASSERT_PANIC(name) \
-           Panic(_##name##Fmt, __FILE__, __LINE__)
-#define _ASSERT_PANIC_BUG(bug, name) \
-           Panic(_##name##Fmt " bugNr=%d", __FILE__, __LINE__, bug)
-#define _ASSERT_PANIC_NORETURN(name) \
-           Panic_NoReturn(_##name##Fmt, __FILE__, __LINE__)
+#include "vmk_assert.h"
 
 #else /* !VMKPANIC */
 #define _ASSERT_PANIC(name) \
            Panic(_##name##Fmt "\n", __FILE__, __LINE__)
 #define _ASSERT_PANIC_BUG(bug, name) \
            Panic(_##name##Fmt " bugNr=%d\n", __FILE__, __LINE__, bug)
+#define _ASSERT_PANIC_NORETURN(name) \
+           Panic(_##name##Fmt "\n", __FILE__, __LINE__)
+#define _ASSERT_PANIC_BUG_NORETURN(bug, name) \
+           Panic(_##name##Fmt " bugNr=%d\n", __FILE__, __LINE__, bug)
 #endif /* VMKPANIC */
-
-#ifdef VMX86_DEVEL
-#   define _ASSERT_WARNING(name) \
-           Warning(_##name##Fmt "\n", __FILE__, __LINE__)
-#else
-#   define _ASSERT_WARNING(name) \
-           Log(_##name##Fmt "\n", __FILE__, __LINE__)
-#endif
 
 #endif // }
 
 
-// these don't have newline so a bug can be tacked on
+// These strings don't have newline so that a bug can be tacked on.
 #define _AssertPanicFmt            "PANIC %s:%d"
 #define _AssertAssertFmt           "ASSERT %s:%d"
+#define _AssertVerifyFmt           "VERIFY %s:%d"
 #define _AssertNotImplementedFmt   "NOT_IMPLEMENTED %s:%d"
 #define _AssertNotReachedFmt       "NOT_REACHED %s:%d"
 #define _AssertMemAllocFmt         "MEM_ALLOC %s:%d"
 #define _AssertNotTestedFmt        "NOT_TESTED %s:%d"
-
 
 
 /*
@@ -149,33 +135,25 @@ void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
 NORETURN void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
 #endif
 
-NORETURN void Panic_NoSaveNoReturn(const char *fmt, ...)
-   PRINTF_DECL(1, 2);
+NORETURN void Panic_NoSaveNoReturn(const char *fmt, ...) PRINTF_DECL(1, 2);
 
 #define Panic(fmt...) do { \
-   Panic_SaveRegs(); \
-   Panic_NoSave(fmt); \
+   Panic_SaveRegs();       \
+   Panic_NoSave(fmt);      \
 } while(0)
 
 #define Panic_NoReturn(fmt...) do { \
-   Panic_SaveRegs(); \
-   Panic_NoSaveNoReturn(fmt); \
+   Panic_SaveRegs();                \
+   Panic_NoSaveNoReturn(fmt);       \
 } while(0)
-
 
 #else
 NORETURN void Panic(const char *fmt, ...) PRINTF_DECL(1, 2);
 #endif
 
-void LogThrottled(uint32 *count, const char *fmt, ...)
-            PRINTF_DECL(2, 3);
-void WarningThrottled(uint32 *count, const char *fmt, ...)
-            PRINTF_DECL(2, 3);
+void LogThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
+void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 
-
-/*
- * Stress testing: redefine ASSERT_IFNOT() to taste
- */
 
 #ifndef ASSERT_IFNOT
    /*
@@ -194,11 +172,11 @@ void WarningThrottled(uint32 *count, const char *fmt, ...)
     */
 
    #ifdef __GNUC__
-      #define ASSERT_IFNOT(cond, panic)                                              \
-                 ({if (UNLIKELY(!(cond))) { panic; if (0) { if (cond) { ; } } } (void)0;})
+      #define ASSERT_IFNOT(cond, panic)                                       \
+         ({if (UNLIKELY(!(cond))) { panic; if (0) { if (cond) {;}}} (void)0;})
    #else
-      #define ASSERT_IFNOT(cond, panic)                               \
-                 (UNLIKELY(!(cond)) ? (panic) : (void)0)
+      #define ASSERT_IFNOT(cond, panic)                                       \
+         (UNLIKELY(!(cond)) ? (panic) : (void)0)
    #endif
 #endif
 
@@ -210,56 +188,62 @@ void WarningThrottled(uint32 *count, const char *fmt, ...)
  * ASSERT() is special cased because of interaction with Windows DDK.
  */
 
-#if defined VMX86_DEBUG || defined ASSERT_ALWAYS_AVAILABLE
-#undef ASSERT
-#define ASSERT(cond) \
-           ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertAssert))
-#endif
+#if defined VMX86_DEBUG
+#undef  ASSERT
+#define ASSERT(cond) ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertAssert))
 #define ASSERT_BUG(bug, cond) \
            ASSERT_IFNOT(cond, _ASSERT_PANIC_BUG(bug, AssertAssert))
-#define ASSERT_BUG_DEBUGONLY(bug, cond) ASSERT_BUG(bug, cond)
+#endif
+
+#undef  VERIFY
+#define VERIFY(cond) \
+           ASSERT_IFNOT(cond, _ASSERT_PANIC_NORETURN(AssertVerify))
+#define VERIFY_BUG(bug, cond) \
+           ASSERT_IFNOT(cond, _ASSERT_PANIC_BUG_NORETURN(bug, AssertVerify))
 
 #define PANIC()        _ASSERT_PANIC(AssertPanic)
 #define PANIC_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertPanic)
-
-#ifdef VMKPANIC
-#define ASSERT_OR_IN_PANIC(cond) ASSERT((cond) || Panic_IsSystemInPanic())
-#endif
 
 #define ASSERT_NOT_IMPLEMENTED(cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED())
 #define ASSERT_NOT_IMPLEMENTED_BUG(bug, cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED_BUG(bug))
 
-#if defined VMKPANIC && defined VMX86_DEBUG
+#if defined VMKPANIC || defined VMM
 #define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented)
 #else
 #define NOT_IMPLEMENTED()        _ASSERT_PANIC(AssertNotImplemented)
 #endif
-#define NOT_IMPLEMENTED_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertNotImplemented)
 
-#if defined VMKPANIC && defined VMX86_DEBUG
+#if defined VMM
+#define NOT_IMPLEMENTED_BUG(bug) \
+          _ASSERT_PANIC_BUG_NORETURN(bug, AssertNotImplemented)
+#else 
+#define NOT_IMPLEMENTED_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertNotImplemented)
+#endif
+
+#if defined VMKPANIC || defined VMM
 #define NOT_REACHED()            _ASSERT_PANIC_NORETURN(AssertNotReached)
 #else
 #define NOT_REACHED()            _ASSERT_PANIC(AssertNotReached)
 #endif
-#define NOT_REACHED_BUG(bug)     _ASSERT_PANIC_BUG(bug, AssertNotReached)
 
 #define ASSERT_MEM_ALLOC(cond) \
            ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertMemAlloc))
 
 #ifdef VMX86_DEVEL
-   #define ASSERT_DEVEL(cond) ASSERT(cond)
+#define ASSERT_DEVEL(cond) ASSERT(cond)
+#define NOT_TESTED()       Warning(_AssertNotTestedFmt "\n", __FILE__, __LINE__)
 #else
-   #define ASSERT_DEVEL(cond) ((void) 0)
+#define ASSERT_DEVEL(cond) ((void)0)
+#define NOT_TESTED()       Log(_AssertNotTestedFmt "\n", __FILE__, __LINE__)
 #endif
 
 #define ASSERT_NO_INTERRUPTS()  ASSERT(!INTERRUPTS_ENABLED())
 #define ASSERT_HAS_INTERRUPTS() ASSERT(INTERRUPTS_ENABLED())
 
-#define NOT_TESTED() _ASSERT_WARNING(AssertNotTested)
 #define ASSERT_NOT_TESTED(cond) (UNLIKELY(!(cond)) ? NOT_TESTED() : (void)0)
-#define NOT_TESTED_ONCE() DO_ONCE(NOT_TESTED())
+#define NOT_TESTED_ONCE()       DO_ONCE(NOT_TESTED())
 
 #define NOT_TESTED_1024()                                               \
    do {                                                                 \
@@ -270,30 +254,16 @@ void WarningThrottled(uint32 *count, const char *fmt, ...)
 
 #define LOG_ONCE(_s) DO_ONCE(Log _s)
 
-#ifdef VMX86_DEVEL
-   #define DEPRECATED(_fix) DO_ONCE(                                        \
-                               Warning("%s:%d: %s is DEPRECATED; %s\n",     \
-                                          __FILE__, __LINE__, __FUNCTION__, \
-                                          _fix))
-#else
-   #define DEPRECATED(_fix) do {} while (0)
-#endif
-
 
 /*
  * Redefine macros that are only in debug versions
  */
 
-#if !defined VMX86_DEBUG && !defined ASSERT_ALWAYS_AVAILABLE // {
+#if !defined VMX86_DEBUG // {
 
 #undef  ASSERT
-#define ASSERT(cond) ((void) 0)
-
-#undef  ASSERT_BUG_DEBUGONLY
-#define ASSERT_BUG_DEBUGONLY(bug, cond) ((void) 0)
-
-#undef  ASSERT_LENGTH
-#define ASSERT_LENGTH(real, expected) ((void) 0)
+#define ASSERT(cond)          ((void)0)
+#define ASSERT_BUG(bug, cond) ((void)0)
 
 /*
  * Expand NOT_REACHED() as appropriate for each situation.
@@ -311,27 +281,28 @@ void WarningThrottled(uint32 *count, const char *fmt, ...)
  * with the inconsistency.
  */
 
-#ifdef VMM
+#if defined VMKPANIC || defined VMM
 #undef  NOT_REACHED
-#define NOT_REACHED() ((void) 0)
+#if defined __GNUC__ && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 5)
+#define NOT_REACHED() (__builtin_unreachable())
+#else
+#define NOT_REACHED() ((void)0)
+#endif
 #else
 // keep debug definition
 #endif
 
-#undef  ASSERT_LOG_UNEXPECTED
-#define ASSERT_LOG_UNEXPECTED(bug, cond) ((void) 0)
-
 #undef LOG_UNEXPECTED
-#define LOG_UNEXPECTED(bug) ((void) 0)
+#define LOG_UNEXPECTED(bug)     ((void)0)
 
 #undef  ASSERT_NOT_TESTED
-#define ASSERT_NOT_TESTED(cond) ((void) 0)
+#define ASSERT_NOT_TESTED(cond) ((void)0)
 #undef  NOT_TESTED
-#define NOT_TESTED() ((void) 0)
+#define NOT_TESTED()            ((void)0)
 #undef  NOT_TESTED_ONCE
-#define NOT_TESTED_ONCE() ((void) 0)
+#define NOT_TESTED_ONCE()       ((void)0)
 #undef  NOT_TESTED_1024
-#define NOT_TESTED_1024() ((void) 0)
+#define NOT_TESTED_1024()       ((void)0)
 
 #endif // !VMX86_DEBUG }
 
@@ -377,8 +348,8 @@ void WarningThrottled(uint32 *count, const char *fmt, ...)
  */
 
 #define MY_ASSERTS(name, assertions) \
-   static INLINE void name(void) { \
-      assertions \
+   static INLINE void name(void) {   \
+      assertions                     \
    }
 
 #ifdef __cplusplus

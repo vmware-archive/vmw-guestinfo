@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,9 +26,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of VMware Inc. nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission of VMware Inc.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -107,7 +104,6 @@ typedef char           Bool;
 #else
 #define vm_x86_64 (0)
 #endif
-
 
 #ifdef _MSC_VER
 
@@ -243,20 +239,21 @@ typedef signed char        int8;
 #   else
 #      if !defined(__intptr_t_defined) && !defined(intptr_t)
 #         ifdef VM_I386
-#         define __intptr_t_defined
-#            ifdef VM_X86_64
+#            define __intptr_t_defined
+#            if defined(VM_X86_64)
 typedef int64     intptr_t;
 #            else
 typedef int32     intptr_t;
 #            endif
 #         elif defined(__arm__)
+#            define __intptr_t_defined
 typedef int32     intptr_t;
 #         endif
 #      endif
 
 #      ifndef _STDINT_H
 #         ifdef VM_I386
-#            ifdef VM_X86_64
+#            if defined(VM_X86_64)
 typedef uint64    uintptr_t;
 #            else
 typedef uint32    uintptr_t;
@@ -317,7 +314,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
        * ((__FreeBSD__ + 0) < 5).  No, we can't remove "+ 0" from
        * ((__FreeBSD__ + 0) < 5).
        */
-      #ifdef VM_X86_64
+      #if defined(VM_X86_64)
          #define FMTSZ  "l"
          #define FMTPD  "l"
       #else
@@ -339,13 +336,13 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
    #else
       /* Systems with a pre-C99 libc */
       #define FMTSZ     "Z"
-      #ifdef VM_X86_64
+      #if defined(VM_X86_64)
          #define FMTPD  "l"
       #else
          #define FMTPD  ""
       #endif
    #endif
-   #ifdef VM_X86_64
+   #if defined(VM_X86_64)
       #define FMT64     "l"
    #elif defined(sun) || defined(__FreeBSD__)
       #define FMT64     "ll"
@@ -376,7 +373,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
 #define CONST64(c) c##LL
 #define CONST64U(c) c##uLL
 #elif __GNUC__
-#ifdef VM_X86_64
+#if defined(VM_X86_64)
 #define CONST64(c) c##L
 #define CONST64U(c) c##uL
 #else
@@ -396,7 +393,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
  * more than 31 on a 64-bit compile.
  */
 
-#ifdef VM_X86_64
+#if defined(VM_X86_64)
     #define CONST3264(a) CONST64(a)
     #define CONST3264U(a) CONST64U(a)
 #else
@@ -434,7 +431,7 @@ typedef uint8 *TCA;  /* Pointer into TC (usually). */
  * Type big enough to hold an integer between 0..100
  */
 typedef uint8 Percent;
-#define AsPercent(v)	((Percent)(v))
+#define AsPercent(v) ((Percent)(v))
 
 
 typedef uintptr_t VA;
@@ -442,6 +439,9 @@ typedef uintptr_t VPN;
 
 typedef uint64    PA;
 typedef uint32    PPN;
+
+typedef uint64    TPA;
+typedef uint32    TPPN;
 
 typedef uint64    PhysMemOff;
 typedef uint64    PhysMemSize;
@@ -521,8 +521,6 @@ typedef uint32 LA32;
 typedef uint32 LPN32;
 typedef uint32 PA32;
 typedef uint32 PPN32;
-typedef uint32 MA32;
-typedef uint32 MPN32;
 
 /*
  * On 64 bit platform, the following types are the same as the
@@ -536,6 +534,13 @@ typedef uint64 PA64;
 typedef uint64 PPN64;
 typedef uint64 MA64;
 typedef uint64 MPN64;
+
+/*
+ * IO device DMA virtual address and page number (translated by IOMMU to
+ * MA/MPN). IOPN can be in the inclusive range 0 -> MAX_IOPN.
+ */
+typedef uint64 IOA;
+typedef uint64 IOPN;
 
 /*
  * VA typedefs for user world apps.
@@ -552,32 +557,30 @@ typedef void * UserVA;
 #endif
 
 
-/*
- * Maximal possible PPN value (errors too) that PhysMem can handle.
- * Must be at least as large as MAX_PPN which is the maximum PPN
- * for any region other than buserror.
- */
-#define PHYSMEM_MAX_PPN   ((PPN)0xffffffff)
-#define MAX_PPN           ((PPN)0x3fffffff) /* Maximal observable PPN value. */
+#define MAX_PPN_BITS      30
+#define MAX_PPN           (((PPN)1 << MAX_PPN_BITS) - 1) /* Maximal observable PPN value. */
 #define INVALID_PPN       ((PPN)0xffffffff)
 #define APIC_INVALID_PPN  ((PPN)0xfffffffe)
 
 #define INVALID_BPN       ((BPN)0x3fffffff)
 
-#define RESERVED_MPN      ((MPN) 0)
-#define INVALID_MPN       ((MPN)-1)
-#define MEMREF_MPN        ((MPN)-2)
-#define RELEASED_MPN      ((MPN)-3)
+#define MPN38_MASK        ((1ull << 38) - 1) /* imposed by vmkernel pframes */
 
-/* 0xfffffffc to account for special MPNs defined above. */
-#define MAX_MPN           ((MPN)0xfffffffc)  /* 44 bits of address space. */
+#define RESERVED_MPN      ((MPN64)0)
+#define INVALID_MPN       ((MPN64)MPN38_MASK)
+#define MEMREF_MPN        ((MPN64)MPN38_MASK - 1)
+#define RELEASED_MPN      ((MPN64)MPN38_MASK - 2)
+
+/* account for special MPNs defined above */
+#define MAX_MPN           ((MPN64)MPN38_MASK - 3) /* 50 bits of address space */
+
+#define INVALID_IOPN      ((IOPN)-1)
+#define MAX_IOPN          (INVALID_IOPN - 1)
 
 #define INVALID_LPN       ((LPN)-1)
 #define INVALID_VPN       ((VPN)-1)
 #define INVALID_LPN64     ((LPN64)-1)
 #define INVALID_PAGENUM   ((PageNum)-1)
-
-#define INVALID_MPN64     ((MPN64)-1)
 
 /*
  * Format modifier for printing VA, LA, and VPN.
@@ -619,11 +622,20 @@ typedef void * UserVA;
 #  define VMX86_EXTERN_DATA       extern
 #endif
 
-#if defined(_WIN32) && !defined(VMX86_NO_THREADS)
-#define THREADSPECIFIC __declspec(thread)
+#ifdef _WIN32
+
+/* under windows, __declspec(thread) is supported since VS 2003 */
+#define __thread __declspec(thread)
+
 #else
-#define THREADSPECIFIC
+
+/*
+ * under other platforms instead, __thread is supported by gcc since
+ * version 3.3.1 and by clang since version 3.x
+ */
+
 #endif
+
 
 /*
  * Due to the wonderful "registry redirection" feature introduced in
@@ -650,7 +662,7 @@ typedef void * UserVA;
  * The various linux kernel modules may use older (gcc-3.3) compilers.
  */
 #if defined __GNUC__ && (__GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 3))
-#error "gcc version is to old to compile assembly, need gcc-3.3 or better"
+#error "gcc version is too old to compile assembly, need gcc-3.3 or better"
 #endif
 
 
@@ -686,7 +698,7 @@ typedef void * UserVA;
  * that gcc will not do inlining.
  */
 
-#if defined(__GNUC__) && (defined(VMM) || defined (VMKERNEL) || defined (VMKBOOT))
+#if defined(__GNUC__)
 #define ABSOLUTELY_NOINLINE __attribute__((__noinline__))
 #endif
 
@@ -694,13 +706,26 @@ typedef void * UserVA;
  * Used when a function has no effects except the return value and the
  * return value depends only on the parameters and/or global variables
  * Such a function can be subject to common subexpression elimination
- * and loop optimization just as an arithmetic operator would be. 
+ * and loop optimization just as an arithmetic operator would be.
  */
 
 #if defined(__GNUC__) && (defined(VMM) || defined (VMKERNEL))
 #define SIDE_EFFECT_FREE __attribute__((__pure__))
 #else
 #define SIDE_EFFECT_FREE
+#endif
+
+/*
+ * Used when a function exmaines no input other than its arguments and
+ * has no side effects other than its return value.  Stronger than
+ * SIDE_EFFECT_FREE as the function is not allowed to read from global
+ * memory.
+ */
+
+#if defined(__GNUC__) && (defined(VMM) || defined (VMKERNEL))
+#define CONST_FUNCTION __attribute__((__const__))
+#else
+#define CONST_FUNCTION
 #endif
 
 /*
@@ -881,6 +906,7 @@ typedef void * UserVA;
 #         define _SSIZE_T
 #         define __ssize_t_defined
 #         define _SSIZE_T_DECLARED
+#         define _SSIZE_T_DEFINED_
 #         ifdef VM_X86_64
              typedef int64 ssize_t;
 #         else
@@ -890,6 +916,7 @@ typedef void * UserVA;
 #         define _SSIZE_T
 #         define __ssize_t_defined
 #         define _SSIZE_T_DECLARED
+#         define _SSIZE_T_DEFINED_
              typedef int32 ssize_t;
 #      endif
 #   endif

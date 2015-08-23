@@ -19,22 +19,11 @@
 /*
  * x86_basic_defs.h --
  *
- *	Basic macros describing the x86 architecture.
+ *    Basic macros describing the x86 architecture.
  */
 
 #ifndef _X86_BASIC_DEFS_H_
 #define _X86_BASIC_DEFS_H_
-
-#define INCLUDE_ALLOW_USERLEVEL
-
-#define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_VMMON
-#define INCLUDE_ALLOW_VMK_MODULE
-#define INCLUDE_ALLOW_VMKERNEL
-#define INCLUDE_ALLOW_DISTRIBUTE
-#define INCLUDE_ALLOW_VMCORE
-#define INCLUDE_ALLOW_VMIROM
-#include "includeCheck.h"
 
 #define SIZE_8BIT   1
 #define SIZE_16BIT  2
@@ -94,9 +83,16 @@
 #define CR4_PCIDE      0x00020000
 #define CR4_OSXSAVE    0x00040000
 #define CR4_SMEP       0x00100000
+#define CR4_SMAP       0x00200000
 /* Removing a bit from CR4_RESERVED causes Task_Switch to leave the bit set. */
-#define CR4_RESERVED   CONST64U(0xffffffffffe89800) 
+#define CR4_RESERVED   CONST64U(0xffffffffffc89800) 
 #define CR8_RESERVED   CONST64U(0xfffffffffffffff0)
+
+/*
+ * Debug registers.
+ */
+
+#define DR_COUNT       4
 
 #define DR6_B0         0x00000001
 #define DR6_B1         0x00000002
@@ -107,19 +103,20 @@
 #define DR6_BD         0x00002000
 #define DR6_BS         0x00004000
 #define DR6_BT         0x00008000
-#define DR6_ONES       0xffff0ff0
-#define DR6_STICKY     (~DR6_B0123)
-#define DR6_RESERVED_MASK 0xffff1ff0
-
-/* 
- * Debug registers.
- */
+#define DR6_RTM        0x00010000
+#define DR6_ONES       0xfffe0ff0
+#define DR6_DEFAULT    (DR6_ONES | DR6_RTM)
+#define DR6_RESERVED_MASK 0xfffe1ff0
 
 #define DR7_L_MASK(_n)   (1 << ((_n) * 2))
 #define DR7_G_MASK(_n)   (1 << ((_n) * 2 + 1))
 #define DR7_LG_MASK(_n)  (3 << ((_n) * 2))
 #define DR7_RW_MASK(_n)  (3 << (16 + (_n) * 4))
 #define DR7_LEN_MASK(_n) (3 << (18 + (_n) * 4))
+#define DR7_BP_MASK(_n) (DR7_L_MASK(_n)  |\
+                         DR7_G_MASK(_n)  |\
+                         DR7_RW_MASK(_n) |\
+                         DR7_LEN_MASK(_n))
 
 #define DR7_L0         DR7_L_MASK(0)
 #define DR7_G0         DR7_G_MASK(0)
@@ -135,7 +132,8 @@
 #define DR7_GE         0x00000200    // Deprecated in modern hardware
 #define DR7_GD         0x00002000
 #define DR7_ONES       0x00000400
-#define DR7_RESERVED   CONST64U(0xffffffff0000dc00)
+#define DR7_RTM        0x00000800
+#define DR7_RESERVED   CONST64U(0xffffffff0000d400)
 #define DR7_DEFUNCT    (DR7_LE | DR7_GE)
 #define DR7_DEFAULT    DR7_ONES
 #define DR7_LX_MASK    (DR7_L0 | DR7_L1 | DR7_L2 | DR7_L3 | DR7_LE)
@@ -199,34 +197,46 @@
 #define EFLAGS_IOPL_SHIFT 12
 
 typedef enum x86_FLAGS {
-   EFLAGS_NONE  = 0,
-   EFLAGS_CF    = (1 << 0),     /* User */ 
-   EFLAGS_SET   = (1 << 1),                                  
-   EFLAGS_PF    = (1 << 2),     /* User */ 
-   EFLAGS_AF    = (1 << 4),     /* User */ 
-   EFLAGS_ZF    = (1 << 6),     /* User */ 
-   EFLAGS_SF    = (1 << 7),     /* User */ 
-   EFLAGS_TF    = (1 << 8),     /* Priv */ 
-   EFLAGS_IF    = (1 << 9),     /* Priv */ 
-   EFLAGS_DF    = (1 << 10),    /* User */ 
-   EFLAGS_OF    = (1 << 11),    /* User */ 
-   EFLAGS_NT    = (1 << 14),    /* Priv */ 
-   EFLAGS_RF    = (1 << 16),    /* Priv */ 
-   EFLAGS_VM    = (1 << 17),    /* Priv */ 
-   EFLAGS_AC    = (1 << 18),    /* Priv */ 
-   EFLAGS_VIF   = (1 << 19),    /* Priv */ 
-   EFLAGS_VIP   = (1 << 20),    /* Priv */ 
-   EFLAGS_ID    = (1 << 21),    /* Priv */
+   EFLAGS_NONE         = 0,
+   EFLAGS_CF           = (1 << 0),     /* User */ 
+   EFLAGS_SET          = (1 << 1),                                  
+   EFLAGS_PF           = (1 << 2),     /* User */ 
+   EFLAGS_AF           = (1 << 4),     /* User */ 
+   EFLAGS_ZF           = (1 << 6),     /* User */ 
+   EFLAGS_SF           = (1 << 7),     /* User */ 
+   EFLAGS_TF           = (1 << 8),     /* Priv */ 
+   EFLAGS_IF           = (1 << 9),     /* Priv */ 
+   EFLAGS_DF           = (1 << 10),    /* User */ 
+   EFLAGS_OF           = (1 << 11),    /* User */ 
+   EFLAGS_NT           = (1 << 14),    /* Priv */ 
+   EFLAGS_RF           = (1 << 16),    /* Priv */ 
+   EFLAGS_VM           = (1 << 17),    /* Priv */ 
+   EFLAGS_AC           = (1 << 18),    /* Priv */ 
+   EFLAGS_VIF          = (1 << 19),    /* Priv */ 
+   EFLAGS_VIP          = (1 << 20),    /* Priv */ 
+   EFLAGS_ID           = (1 << 21),    /* Priv */
    
-   EFLAGS_IOPL  = 3 << EFLAGS_IOPL_SHIFT,
-   EFLAGS_ARITH = (EFLAGS_CF | EFLAGS_PF | EFLAGS_AF | EFLAGS_ZF |
-                   EFLAGS_SF | EFLAGS_OF),
-   EFLAGS_ALL   = (EFLAGS_CF | EFLAGS_PF | EFLAGS_AF | EFLAGS_ZF |
-                   EFLAGS_SF | EFLAGS_DF | EFLAGS_OF | EFLAGS_TF |
-                   EFLAGS_IF | EFLAGS_IOPL | EFLAGS_NT | EFLAGS_RF |
-                   EFLAGS_VM | EFLAGS_AC | EFLAGS_VIF | EFLAGS_VIP | 
-                   EFLAGS_ID),
-   EFLAGS__4    = 0x7fffffff    /* ensure 4 byte encoding */
+   EFLAGS_IOPL         = 3 << EFLAGS_IOPL_SHIFT,
+   EFLAGS_ARITH        = (EFLAGS_CF | EFLAGS_PF | EFLAGS_AF | EFLAGS_ZF |
+                          EFLAGS_SF | EFLAGS_OF),
+   EFLAGS_USER         = (EFLAGS_CF | EFLAGS_PF | EFLAGS_AF | EFLAGS_ZF |
+                          EFLAGS_SF | EFLAGS_DF | EFLAGS_OF),
+   EFLAGS_PRIV         = (EFLAGS_TF  | EFLAGS_IF  | EFLAGS_IOPL | EFLAGS_NT  |
+                          EFLAGS_RF  | EFLAGS_VM  | EFLAGS_AC   | EFLAGS_VIF |
+                          EFLAGS_VIP | EFLAGS_ID),
+   EFLAGS_ALL          = (EFLAGS_CF | EFLAGS_PF | EFLAGS_AF | EFLAGS_ZF |
+                          EFLAGS_SF | EFLAGS_DF | EFLAGS_OF | EFLAGS_TF |
+                          EFLAGS_IF | EFLAGS_IOPL | EFLAGS_NT | EFLAGS_RF |
+                          EFLAGS_VM | EFLAGS_AC | EFLAGS_VIF | EFLAGS_VIP | 
+                          EFLAGS_ID),
+   EFLAGS_ALL_16       = EFLAGS_ALL & 0xffff,
+   EFLAGS_REAL_32      = (EFLAGS_ALL & ~(EFLAGS_VIP | EFLAGS_VIF | EFLAGS_VM)),
+   EFLAGS_V8086_32     = (EFLAGS_ALL & ~(EFLAGS_VIP | EFLAGS_VIF |
+                                         EFLAGS_VM  | EFLAGS_IOPL)),
+   EFLAGS_REAL_16      = EFLAGS_REAL_32 & 0xffff,
+   EFLAGS_V8086_16     = EFLAGS_V8086_32 & 0xffff,
+   EFLAGS_CLEAR_ON_EXC = (EFLAGS_TF | EFLAGS_VM | EFLAGS_RF | EFLAGS_NT),
+   EFLAGS__4           = 0x7fffffff    /* ensure 4 byte encoding */
 } x86_FLAGS;
 
 

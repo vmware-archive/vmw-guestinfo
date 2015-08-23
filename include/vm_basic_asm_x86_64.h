@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,18 +39,19 @@
 #ifndef _VM_BASIC_ASM_X86_64_H_
 #define _VM_BASIC_ASM_X86_64_H_
 
+
 #ifndef VM_X86_64
 #error "This file is x86-64 only!"
 #endif
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(BORA_NO_WIN32_INTRINS)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-uint64 _umul128(uint64 multiplier, uint64 multiplicand, 
+uint64 _umul128(uint64 multiplier, uint64 multiplicand,
                 uint64 *highProduct);
-int64 _mul128(int64 multiplier, int64 multiplicand, 
+int64 _mul128(int64 multiplier, int64 multiplicand,
               int64 *highProduct);
 uint64 __shiftright128(uint64 lowPart, uint64 highPart, uint8 shift);
 #ifdef __cplusplus
@@ -61,23 +62,36 @@ uint64 __shiftright128(uint64 lowPart, uint64 highPart, uint8 shift);
 
 #endif // _MSC_VER
 
+#if defined(__GNUC__)
 /*
  * GET_CURRENT_RIP
  *
- * Return an approximation of the current instruction pointer. For example for a
- * function call
- * foo.c
- * L123: Foo(GET_CURRENT_RIP())
+ * Returns the current instruction pointer. In the example below:
  *
- * The return value from GET_CURRENT_RIP will point a debugger to L123.
+ *   foo.c
+ *   L123: Foo(GET_CURRENT_RIP())
+ *
+ * the return value from GET_CURRENT_RIP will point a debugger to L123.
  */
-#if defined(__GNUC__)
-#define GET_CURRENT_RIP() ({                                                   \
-      void *__rip;                                                             \
-      asm("lea 0(%%rip), %0;\n\t"                                              \
-         : "=r" (__rip));                                                      \
-      __rip;                                                                   \
+#define GET_CURRENT_RIP() ({                                          \
+      void *__rip;                                                    \
+      asm("lea 0(%%rip), %0;\n\t"                                     \
+         : "=r" (__rip));                                             \
+      __rip;                                                          \
 })
+
+/*
+ * GET_CURRENT_LOCATION
+ *
+ * Updates the arguments with the values of the %rip, %rbp, and %rsp
+ * registers at the current code location where the macro is invoked.
+ */
+#define GET_CURRENT_LOCATION(rip, rbp, rsp)                           \
+   asm("lea 0(%%rip), %0\n"                                           \
+       "mov %%rbp, %1\n"                                              \
+       "mov %%rsp, %2\n"                                              \
+       : "=r" (rip), "=r" (rbp), "=r" (rsp))
+
 #endif
 
 /*
@@ -300,55 +314,81 @@ xtest(void)
  *
  * Mul64x6464 --
  *
- *    Unsigned integer by fixed point multiplication:
- *       result = multiplicand * multiplier >> shift
+ *    Unsigned integer by fixed point multiplication, with rounding:
+ *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
  * 
  *       Unsigned 64-bit integer multiplicand.
  *       Unsigned 64-bit fixed point multiplier, represented as
- *         multiplier >> shift, where shift < 64.
- *       Unsigned 64-bit integer product.
- *
- * Implementation:
- *    Multiply 64x64 bits to yield a full 128-bit product.
- *    Shift result in RDX:RAX right by "shift".
- *    Return the low-order 64 bits of the above.
+ *         (multiplier, shift), where shift < 64.
  *
  * Result:
- *    Product
+ *       Unsigned 64-bit integer product.
  *
  *-----------------------------------------------------------------------------
  */
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(MUL64_NO_ASM)
 
 static INLINE uint64
 Mul64x6464(uint64 multiplicand,
            uint64 multiplier,
            uint32 shift)
 {
+   /*
+    * Implementation:
+    *    Multiply 64x64 bits to yield a full 128-bit product.
+    *    Clear the carry bit (needed for the shift == 0 case).
+    *    Shift result in RDX:RAX right by "shift".
+    *    Add the carry bit.  (If shift > 0, this is the highest order bit
+    *      that was discarded by the shift; else it is 0.)
+    *    Return the low-order 64 bits of the above.
+    *
+    */
    uint64 result, dummy;
 
-   __asm__("mulq    %3      \n\t"
+   __asm__("mulq    %3           \n\t"
+           "clc                  \n\t"
            "shrdq   %b4, %1, %0  \n\t"
+           "adc     $0, %0       \n\t"
            : "=a" (result),
              "=d" (dummy)
            : "0"  (multiplier),
              "rm" (multiplicand),
-         "c"  (shift)
+             "c"  (shift)
            : "cc");
    return result;
 }
 
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && !defined(MUL64_NO_ASM)
 
 static INLINE uint64
-Mul64x6464(uint64 multiplicand, uint64 multiplier, uint32 shift)
+Mul64x6464(uint64 multiplicand,
+           uint64 multiplier,
+           uint32 shift)
 {
+   /*
+    * Unfortunately, MSVC intrinsics don't give us access to the carry
+    * flag after a 128-bit shift, so the implementation is more
+    * awkward:
+    *    Multiply 64x64 bits to yield a full 128-bit product.
+    *    Shift result right by "shift".
+    *    If shift != 0, extract and add in highest order bit that was
+    *      discarded by the shift.
+    *    Return the low-order 64 bits of the above.
+    */
    uint64 tmplo, tmphi;
    tmplo = _umul128(multiplicand, multiplier, &tmphi);
-   return __shiftright128(tmplo, tmphi, (uint8) shift);
+   if (shift == 0) {
+      return tmplo;
+   } else {
+      return __shiftright128(tmplo, tmphi, (uint8) shift) +
+         ((tmplo >> (shift - 1)) & 1);
+   }
 }
 
+#else
+#define MUL64_NO_ASM 1
+#include "mul64.h"
 #endif
 
 /*
@@ -356,80 +396,100 @@ Mul64x6464(uint64 multiplicand, uint64 multiplier, uint32 shift)
  *
  * Muls64x64s64 --
  *
- *    Signed integer by fixed point multiplication:
- *       result = multiplicand * multiplier >> shift
+ *    Signed integer by fixed point multiplication, with rounding:
+ *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
  * 
  *       Signed 64-bit integer multiplicand.
  *       Unsigned 64-bit fixed point multiplier, represented as
- *         multiplier >> shift, where shift < 64.
- *       Signed 64-bit integer product.
- *
- * Implementation:
- *    Multiply 64x64 bits to yield a full 128-bit product.
- *    Shift result in RDX:RAX right by "shift".
- *    Return the low-order 64 bits of the above.
- *
- *    Note: using an unsigned shift instruction is correct because
- *    shift < 64 and we return only the low 64 bits of the shifted
- *    result.
+ *         (multiplier, shift), where shift < 64.
  *
  * Result:
- *    Product
+ *       Signed 64-bit integer product.
  *
  *-----------------------------------------------------------------------------
  */
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(MUL64_NO_ASM)
 
 static inline int64
-Muls64x64s64(int64 multiplicand, int64 multiplier, uint32 shift)
+Muls64x64s64(int64 multiplicand,
+             int64 multiplier,
+             uint32 shift)
 {
    int64 result, dummy;
 
-   __asm__("imulq   %3      \n\t"
-       "shrdq   %b4, %1, %0  \n\t"
-       : "=a" (result),
-         "=d" (dummy)
-       : "0"  (multiplier),
-         "rm" (multiplicand),
-         "c"  (shift)
-       : "cc");
+   /* Implementation:
+    *    Multiply 64x64 bits to yield a full 128-bit product.
+    *    Clear the carry bit (needed for the shift == 0 case).
+    *    Shift result in RDX:RAX right by "shift".
+    *    Add the carry bit.  (If shift > 0, this is the highest order bit
+    *      that was discarded by the shift; else it is 0.)
+    *    Return the low-order 64 bits of the above.
+    *
+    *    Note: using the unsigned shrd instruction is correct because
+    *    shift < 64 and we return only the low 64 bits of the shifted
+    *    result.
+    */
+   __asm__("imulq   %3           \n\t"
+           "clc                  \n\t"
+           "shrdq   %b4, %1, %0  \n\t"
+           "adc     $0, %0       \n\t"
+           : "=a" (result),
+             "=d" (dummy)
+           : "0"  (multiplier),
+             "rm" (multiplicand),
+             "c"  (shift)
+           : "cc");
    return result;
 }
 
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && !defined(MUL64_NO_ASM)
 
 static INLINE int64
-Muls64x64s64(int64 multiplicand, int64 multiplier, uint32 shift)
+Muls64x64s64(int64 multiplicand,
+             int64 multiplier,
+             uint32 shift)
 {
+   /*
+    * Unfortunately, MSVC intrinsics don't give us access to the carry
+    * flag after a 128-bit shift, so the implementation is more
+    * awkward:
+    *    Multiply 64x64 bits to yield a full 128-bit product.
+    *    Shift result right by "shift".
+    *    If shift != 0, extract and add in highest order bit that was
+    *      discarded by the shift.
+    *    Return the low-order 64 bits of the above.
+    *
+    * Note: using an unsigned shift is correct because shift < 64 and
+    * we return only the low 64 bits of the shifted result.
+    */
    int64 tmplo, tmphi;
-
    tmplo = _mul128(multiplicand, multiplier, &tmphi);
-   return __shiftright128(tmplo, tmphi, (uint8) shift);
+   if (shift == 0) {
+      return tmplo;
+   } else {
+      return __shiftright128(tmplo, tmphi, (uint8) shift) +
+         ((tmplo >> (shift - 1)) & 1);
+   }
 }
 
 #endif
 
+#ifndef MUL64_NO_ASM
 /*
  *-----------------------------------------------------------------------------
  *
  * Mul64x3264 --
  *
- *    Unsigned integer by fixed point multiplication:
- *       result = multiplicand * multiplier >> shift
+ *    Unsigned integer by fixed point multiplication, with rounding:
+ *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
  * 
  *       Unsigned 64-bit integer multiplicand.
  *       Unsigned 32-bit fixed point multiplier, represented as
- *         multiplier >> shift, where shift < 64.
- *       Unsigned 64-bit integer product.
- *
- * Implementation:
- *    Multiply 64x64 bits to yield a full 128-bit product.
- *    Shift result in RDX:RAX right by "shift".
- *    Return the low-order 64 bits of the above.
+ *         (multiplier, shift), where shift < 64.
  *
  * Result:
- *    Return the low-order 64 bits of ((multiplicand * multiplier) >> shift)
+ *       Unsigned 64-bit integer product.
  *
  *-----------------------------------------------------------------------------
  */
@@ -445,21 +505,15 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
  *
  * Muls64x32s64 --
  *
- *    Signed integer by fixed point multiplication:
- *       result = (multiplicand * multiplier) >> shift
+ *    Signed integer by fixed point multiplication, with rounding:
+ *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
  * 
  *       Signed 64-bit integer multiplicand.
  *       Unsigned 32-bit fixed point multiplier, represented as
- *         multiplier >> shift, where shift < 64.
- *       Signed 64-bit integer product.
- *
- * Implementation:
- *    Multiply 64x64 bits to yield a full 128-bit product.
- *    Shift result in RDX:RAX right by "shift".
- *    Return the low-order 64 bits of the above.
+ *         (multiplier, shift), where shift < 64.
  *
  * Result:
- *    Return the low-order 64 bits of ((multiplicand * multiplier) >> shift)
+ *       Signed 64-bit integer product.
  *
  *-----------------------------------------------------------------------------
  */
@@ -469,7 +523,7 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
 {
    return Muls64x64s64(multiplicand, multiplier, shift);
 }
-
+#endif
 
 #if defined(__GNUC__)
 

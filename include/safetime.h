@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,14 +46,14 @@
 
 #ifdef _WIN32
 
-#if (defined(_STAT_DEFINED) || defined(_INC_TIME) || defined(_INC_TYPES))
-#error Use safetime.h instead of time.h, stat.h, and types.h
-#endif
-
 #undef  FMTTIME
 #define FMTTIME FMT64"d"
 
 #if (_MSC_VER < 1400)
+
+#if (defined(_STAT_DEFINED) || defined(_INC_TIME) || defined(_INC_TYPES))
+#error Use safetime.h instead of time.h, stat.h, and types.h
+#endif
 
 #define _STAT_DEFINED
 

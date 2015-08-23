@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2011 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,6 +47,9 @@
 #include "vm_basic_asm_x86_64.h"
 #elif defined __i386__
 #include "vm_basic_asm_x86.h"
+#else
+#define MUL64_NO_ASM 1
+#include "mul64.h"
 #endif
 
 /*
@@ -297,10 +300,17 @@ static INLINE int
 lssb32_0(const uint32 value)
 {
    unsigned long idx;
+   unsigned char ret;
+
    if (UNLIKELY(value == 0)) {
       return -1;
    }
-   _BitScanForward(&idx, (unsigned long) value);
+   ret = _BitScanForward(&idx, (unsigned long)value);
+#ifdef __analysis_assume
+   __analysis_assume(ret != 0);
+#endif
+
+#pragma warning(suppress: 6102) // Suppress bogus complaint that idx may be uninitialized in error case
    return idx;
 }
 
@@ -308,10 +318,17 @@ static INLINE int
 mssb32_0(const uint32 value)
 {
    unsigned long idx;
+   unsigned char ret;
+
    if (UNLIKELY(value == 0)) {
       return -1;
    }
-   _BitScanReverse(&idx, (unsigned long) value);
+   ret = _BitScanReverse(&idx, (unsigned long)value);
+#ifdef __analysis_assume
+   __analysis_assume(ret != 0);
+#endif
+
+#pragma warning(suppress: 6102) // Suppress bogus complaint that idx may be uninitialized in error case
    return idx;
 }
 
@@ -323,7 +340,14 @@ lssb64_0(const uint64 value)
    } else {
 #if defined(VM_X86_64)
       unsigned long idx;
-      _BitScanForward64(&idx, (unsigned __int64) value);
+      unsigned char ret;
+
+      ret = _BitScanForward64(&idx, (unsigned __int64)value);
+#ifdef __analysis_assume
+      __analysis_assume(ret != 0);
+#endif
+
+#pragma warning(suppress: 6102) // Suppress bogus complaint that idx may be uninitialized in error case
       return idx;
 #else
       /* The coding was chosen to minimize conditionals and operations */
@@ -347,7 +371,14 @@ mssb64_0(const uint64 value)
    } else {
 #if defined(VM_X86_64)
       unsigned long idx;
-      _BitScanReverse64(&idx, (unsigned __int64) value);
+      unsigned char ret;
+
+      ret = _BitScanReverse64(&idx, (unsigned __int64)value);
+#ifdef __analysis_assume
+      __analysis_assume(ret != 0);
+#endif
+
+#pragma warning(suppress: 6102) // Suppress bogus complaint that idx may be uninitialized in error case
       return idx;
 #else
       /* The coding was chosen to minimize conditionals and operations */
@@ -596,20 +627,39 @@ mssb64(const uint64 value)
 #ifdef __GNUC__
 #if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * uint16set --
+ *
+ *      memset a given address with an uint16 value, count times.
+ *
+ * Results:
+ *      Pointer to filled memory range.
+ *
+ * Side effects:
+ *      As with memset.
+ *
+ *----------------------------------------------------------------------
+ */
+
 static INLINE void *
 uint16set(void *dst, uint16 val, size_t count)
 {
 #ifdef __arm__
-   if (count <= 0)
-       return dst;
-   __asm__ __volatile__ ("\t"
-                         "1: strh %0, [%1]     \n\t"
-                         "   subs %2, %2, #1   \n\t"
-                         "   bne 1b                "
-                         :: "r" (val), "r" (dst), "r" (count)
-                         : "memory"
-        );
-   return dst;
+   void *tmpDst = dst;
+
+   __asm__ __volatile__ (
+      "cmp     %1, #0\n\t"
+      "beq     2f\n"
+      "1:\n\t"
+      "strh    %2, [%0], #2\n\t"
+      "subs    %1, %1, #1\n\t"
+      "bne     1b\n"
+      "2:"
+      : "+r" (tmpDst), "+r" (count)
+      : "r" (val)
+      : "memory");
 #else
    size_t dummy0;
    void *dummy1;
@@ -621,25 +671,44 @@ uint16set(void *dst, uint16 val, size_t count)
                         : "0" (count), "1" (dst), "a" (val)
                         : "memory", "cc"
       );
-
-   return dst;
 #endif
+   return dst;
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * uint32set --
+ *
+ *      memset a given address with an uint32 value, count times.
+ *
+ * Results:
+ *      Pointer to filled memory range.
+ *
+ * Side effects:
+ *      As with memset.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static INLINE void *
 uint32set(void *dst, uint32 val, size_t count)
 {
 #ifdef __arm__
-   if (count <= 0)
-       return dst;
-   __asm__ __volatile__ ("\t"
-                         "1: str %0, [%1]     \n\t"
-                         "   subs %2, %2, #1  \n\t"
-                         "   bne 1b               "
-                         :: "r" (val), "r" (dst), "r" (count)
-                         : "memory"
-        );
-   return dst;
+   void *tmpDst = dst;
+
+   __asm__ __volatile__ (
+      "cmp     %1, #0\n\t"
+      "beq     2f\n"
+      "1:\n\t"
+      "str     %2, [%0], #4\n\t"
+      "subs    %1, %1, #1\n\t"
+      "bne     1b\n"
+      "2:"
+      : "+r" (tmpDst), "+r" (count)
+      : "r" (val)
+      : "memory");
 #else
    size_t dummy0;
    void *dummy1;
@@ -651,9 +720,8 @@ uint32set(void *dst, uint32 val, size_t count)
                         : "0" (count), "1" (dst), "a" (val)
                         : "memory", "cc"
       );
-
-   return dst;
 #endif
+   return dst;
 }
 
 #else /* unknown system: rely on C to write */
@@ -856,7 +924,7 @@ static INLINE void
 PAUSE(void)
 #ifdef __GNUC__
 {
-#ifdef __arm__
+#if defined(__arm__)
    /*
     * ARM has no instruction to execute "spin-wait loop", just leave it
     * empty.
@@ -1295,6 +1363,7 @@ RoundUpPow2Asm32(uint32 value)
            "mov %[out], %[out], ror %[in]" // out = 2^(32 - r1)
                                            // if out == 2^32 then out = 1 as it is right rotate
        : [in]"+r"(value),[out]"+r"(out));
+   return out;
 #else
    uint32 out = 2;
 
@@ -1308,8 +1377,8 @@ RoundUpPow2Asm32(uint32 value)
                                         // zf is always unmodified
            "cmovz %[in], %[out]"        // if value == 1 (zf == 1), write 1 to out.
        : [out]"+r"(out) : [in]"r"(value) : "%ecx", "cc");
-#endif
    return out;
+#endif
 }
 #endif // __GNUC__
 

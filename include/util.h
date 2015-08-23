@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,7 +27,9 @@
 
 #include <stdarg.h>
 #include <string.h>
+#ifndef VMKBOOT
 #include <stdlib.h>
+#endif
 
 #ifdef _WIN32
    #ifdef USERLEVEL
@@ -39,6 +41,7 @@
    #include "errno.h"
 #endif
 #include "vm_assert.h"
+#include "vm_basic_defs.h"
 #include "unicodeTypes.h"
 
 
@@ -95,9 +98,18 @@ typedef struct UtilSingleUseResource UtilSingleUseResource;
 UtilSingleUseResource *Util_SingleUseAcquire(const char *name);
 void Util_SingleUseRelease(UtilSingleUseResource *res);
 
+#ifndef _WIN32
+Bool Util_IPv4AddrValid(const char *addr);
+Bool Util_IPv6AddrValid(const char *addr);
+Bool Util_IPAddrValid(const char *addr);
+#endif
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(sun)
 Bool Util_GetProcessName(pid_t pid, char *bufOut, size_t bufOutSize);
+#endif
+
+#if defined __linux__ && !defined VMX86_SERVER
+Bool Util_IsPhysicalSSD(const char* device);
 #endif
 
 // backtrace functions and utilities
@@ -147,6 +159,7 @@ Bool Util_QueryCStResidency(uint32 *numCpus, uint32 *numCStates,
 /*
  * In util_shared.h
  */
+#define UTIL_FASTRAND_SEED_MAX (0x7fffffff)
 Bool Util_Throttle(uint32 count);
 uint32 Util_FastRand(uint32 seed);
 
@@ -265,12 +278,16 @@ Bool Util_MakeSureDirExistsAndAccessible(char const *path,
 #   define DIRSEPC_W	      L'\\'
 #   define VALID_DIRSEPS      "\\/"
 #   define VALID_DIRSEPS_W    L"\\/"
+#   define CUR_DIRS_W         L"."
+#   define CUR_DIRC_W         L'.'
 #else
 #   define DIRSEPS	      "/"
 #   define DIRSEPC	      '/'
 #   define VALID_DIRSEPS      DIRSEPS
 #endif
 
+#define CURR_DIRS             "."
+#define CURR_DIRC             '.'
 
 /*
  *-----------------------------------------------------------------------
@@ -327,7 +344,7 @@ char *UtilSafeStrndup0(const char *s, size_t n);
 char *UtilSafeStrndup1(const char *s, size_t n,
                       int bugNumber, const char *file, int lineno);
 
-/* 
+/*
  * Debug builds carry extra arguments into the allocation functions for
  * better error reporting. Non-debug builds don't pay this extra overhead.
  */
@@ -430,6 +447,12 @@ Util_Zero(void *buf,       // OUT
       SecureZeroMemory(buf, bufSize);
 #else
       memset(buf, 0, bufSize);
+#if !defined _WIN32
+      /*
+       * Memset calls before free might be optimized out.  See PR1248269.
+       */
+      __asm__ __volatile__("" : : "r"(&buf) : "memory");
+#endif
 #endif
    }
 }
@@ -460,6 +483,7 @@ Util_ZeroString(char *str)  // IN/OUT
 }
 
 
+#ifndef VMKBOOT
 /*
  *-----------------------------------------------------------------------------
  *
@@ -600,6 +624,7 @@ Util_FreeStringList(char **list,      // IN/OUT: the list to free
 {
    Util_FreeList((void **) list, length);
 }
+#endif
 
 #ifndef _WIN32
 /*
@@ -621,9 +646,49 @@ Util_FreeStringList(char **list,      // IN/OUT: the list to free
 static INLINE Bool
 Util_IsFileDescriptorOpen(int fd)   // IN
 {
-   lseek(fd, 0L, SEEK_CUR);
-   return errno != EBADF;
+   return (lseek(fd, 0L, SEEK_CUR) == -1) ? errno != EBADF : TRUE;
 }
 #endif /* !_WIN32 */
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_Memcpy32 --
+ *
+ *      Special purpose version of memcpy that requires nbytes be a
+ *      multiple of 4.  This assumption lets us have a very small,
+ *      inlineable implementation.
+ *
+ * Results:
+ *      dst
+ *
+ * Side effects:
+ *      See above.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void *
+Util_Memcpy32(void *dst, const void *src, size_t nbytes)
+{
+   ASSERT((nbytes % 4) == 0);
+#if defined __GNUC__ && (defined(__i386__) || defined(__x86_64__))
+   do {
+      int dummy0, dummy1, dummy2;
+      __asm__ __volatile__(
+           "cld \n\t"
+           "rep ; movsl"  "\n\t"
+        : "=&c" (dummy0), "=&D" (dummy1), "=&S" (dummy2)
+        : "0" (nbytes / 4), "1" ((long) dst), "2" ((long) src)
+        : "memory", "cc"
+      );
+      return dst;
+   } while (0);
+#else
+   return memcpy(dst, src, nbytes);
+#endif
+}
+
 
 #endif /* UTIL_H */

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,9 +26,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of VMware Inc. nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission of VMware Inc.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -94,6 +91,7 @@
 // XXX the _WIN32 one matches that of VC++, to prevent redefinition warning
 // XXX the other one matches that of gcc3.3.3/glibc2.2.4 to prevent redefinition warnings
 #ifndef offsetof
+#define VMW_DEFINED_OFFSETOF
 #ifdef _WIN32
 #define offsetof(s,m)   (size_t)&(((s *)0)->m)
 #else
@@ -102,8 +100,16 @@
 #endif
 #endif // __APPLE__
 
+/*
+ * This is necessary until we eliminate the inclusion of <windows.h> above.
+ * At that time, it should be possible to use "offsetof" everywhere.
+ */
+#ifndef vmw_offsetof
+#define vmw_offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#endif
+
 #define VMW_CONTAINER_OF(ptr, type, member) \
-   ((type *)((char *)(ptr) - offsetof(type, member)))
+   ((type *)((char *)(ptr) - vmw_offsetof(type, member)))
 
 #ifndef ARRAYSIZE
 #define ARRAYSIZE(a) (sizeof (a) / sizeof *(a))
@@ -283,9 +289,17 @@ Max(int a, int b)
 #define MBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << 20)
 #endif
 
+#ifndef BYTES_2_GBYTES
+#define BYTES_2_GBYTES(_nbytes) ((_nbytes) >> 30)
+#endif
+
+#ifndef GBYTES_2_BYTES
+#define GBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << 30)
+#endif
+
 #ifndef VM_PAE_LARGE_PAGE_SHIFT
 #define VM_PAE_LARGE_PAGE_SHIFT 21
-#endif 
+#endif
 
 #ifndef VM_PAE_LARGE_PAGE_SIZE
 #define VM_PAE_LARGE_PAGE_SIZE (1 << VM_PAE_LARGE_PAGE_SHIFT)
@@ -297,10 +311,6 @@ Max(int a, int b)
 
 #ifndef VM_PAE_LARGE_2_SMALL_PAGES
 #define VM_PAE_LARGE_2_SMALL_PAGES (BYTES_2_PAGES(VM_PAE_LARGE_PAGE_SIZE))
-#endif
-
-#ifndef NR_MPNS_PER_PAGE
-#define NR_MPNS_PER_PAGE (PAGE_SIZE / sizeof(MPN))
 #endif
 
 /*
@@ -357,39 +367,13 @@ void *_ReturnAddress(void);
 #ifdef __GNUC__
 #ifndef sun
 
-static INLINE_SINGLE_CALLER uintptr_t
-GetFrameAddr(void)
-{
-   uintptr_t bp;
-#if  !(__GNUC__ == 4 && (__GNUC_MINOR__ == 0 || __GNUC_MINOR__ == 1))
-   bp = (uintptr_t)__builtin_frame_address(0);
-#else
-   /*
-    * We use this assembly hack due to a bug discovered in gcc 4.1.1.
-    * The bug was fixed in 4.2.0; assume it originated with 4.0.
-    * PR147638, PR554369.
-    */
-     __asm__ __volatile__(
-#  if defined(VM_X86_64)
-                          "movq %%rbp, %0\n"
-#  else
-                          "movl %%ebp, %0\n"
-#  endif
-                          : "=g" (bp));
-#endif
-   return bp;
-}
-
-
 /*
- * Returns the frame pointer of the calling function.
- * Equivalent to __builtin_frame_address(1).
+ * A bug in __builtin_frame_address was discovered in gcc 4.1.1, and
+ * fixed in 4.2.0; assume it originated in 4.0. PR 147638 and 554369.
  */
-static INLINE_SINGLE_CALLER uintptr_t
-GetCallerFrameAddr(void)
-{
-   return *(uintptr_t*)GetFrameAddr();
-}
+#if  !(__GNUC__ == 4 && (__GNUC_MINOR__ == 0 || __GNUC_MINOR__ == 1))
+#define GetFrameAddr() __builtin_frame_address(0)
+#endif
 
 #endif // sun
 #endif // __GNUC__
@@ -742,5 +726,27 @@ typedef int pid_t;
 #else
 #define VISIBILITY_HIDDEN /* nothing */
 #endif
+
+
+/*
+ * Bitfield extraction.
+ */
+
+#define EXTRACT_BITSLICE32(_val , _lsb, _msb)  \
+   (((uint32)(_val) << (31 - (_msb))) >> ((31 - (_msb)) + (_lsb)))
+#define EXTRACT_BITFIELD32(_val, _pos, _len) \
+   EXTRACT_BITSLICE32((_val), (_pos), ((_pos) + (_len) - 1))
+#define EXTRACT_BITSLICE64(_val, _lsb, _msb) \
+   (((uint64)(_val) << (63 - (_msb))) >> ((63 - (_msb)) + (_lsb)))
+#define EXTRACT_BITFIELD64(_val, _pos, _len) \
+   EXTRACT_BITSLICE64((_val), (_pos), ((_pos) + (_len) - 1))
+
+/*
+ * Typical cache line size.  Use this for aligning structures to cache
+ * lines for performance, but do not rely on it for correctness.
+ */
+#define CACHELINE_SIZE             64
+#define CACHELINE_ALIGNMENT_MASK   (CACHELINE_SIZE - 1)
+
 
 #endif // ifndef _VM_BASIC_DEFS_H_
