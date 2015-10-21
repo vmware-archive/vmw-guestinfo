@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/sigma/vmw-guestinfo/rpcvmx"
-	"github.com/sigma/vmw-guestinfo/vmcheck"
+	"github.com/vmware/vmw-guestinfo/rpcvmx"
+	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
 
 func main() {
