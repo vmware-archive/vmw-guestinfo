@@ -39,6 +39,16 @@
 #ifndef _X86CPUID_ASM_H_
 #define _X86CPUID_ASM_H_
 
+#define INCLUDE_ALLOW_USERLEVEL
+
+#define INCLUDE_ALLOW_MODULE
+#define INCLUDE_ALLOW_VMMON
+#define INCLUDE_ALLOW_VMK_MODULE
+#define INCLUDE_ALLOW_VMKERNEL
+#define INCLUDE_ALLOW_DISTRIBUTE
+#define INCLUDE_ALLOW_VMCORE
+#include "includeCheck.h"
+
 #include "vm_basic_asm.h"
 #include "x86cpuid.h"
 
@@ -434,12 +444,6 @@ __GET_EAX_FROM_CPUID4(int inputEcx)
 #endif
 
 #define CPUID_FOR_SIDE_EFFECTS() ((void)__GET_EAX_FROM_CPUID(0))
-
-static INLINE void
-__GET_CPUID4(int inputEcx, CPUIDRegs *regs)
-{
-   __GET_CPUID2(4, inputEcx, regs);
-}
 
 /* The first parameter is used as an rvalue and then as an lvalue. */
 #define GET_CPUID(_ax, _bx, _cx, _dx) { \

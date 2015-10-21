@@ -39,6 +39,16 @@
 #ifndef _VM_BASIC_ASM_X86_H_
 #define _VM_BASIC_ASM_X86_H_
 
+#define INCLUDE_ALLOW_USERLEVEL
+
+#define INCLUDE_ALLOW_MODULE
+#define INCLUDE_ALLOW_VMMON
+#define INCLUDE_ALLOW_VMK_MODULE
+#define INCLUDE_ALLOW_VMKERNEL
+#define INCLUDE_ALLOW_DISTRIBUTE
+#define INCLUDE_ALLOW_VMCORE
+#include "includeCheck.h"
+
 #ifdef VM_X86_64
 /*
  * The gcc inline asm uses the "A" constraint which differs in 32 & 64
@@ -548,6 +558,5 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
 
 #pragma warning(default: 4035)
 #endif
-
 
 #endif

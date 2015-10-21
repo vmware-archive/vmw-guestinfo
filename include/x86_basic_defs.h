@@ -25,16 +25,15 @@
 #ifndef _X86_BASIC_DEFS_H_
 #define _X86_BASIC_DEFS_H_
 
-#define SIZE_8BIT   1
-#define SIZE_16BIT  2
-#define SIZE_24BIT  3
-#define SIZE_32BIT  4
-#define SIZE_48BIT  6
-#define SIZE_64BIT  8
-#define SIZE_80BIT  10
-#define SIZE_128BIT 16
-#define SIZE_256BIT 32
+#define INCLUDE_ALLOW_USERLEVEL
 
+#define INCLUDE_ALLOW_MODULE
+#define INCLUDE_ALLOW_VMMON
+#define INCLUDE_ALLOW_VMK_MODULE
+#define INCLUDE_ALLOW_VMKERNEL
+#define INCLUDE_ALLOW_DISTRIBUTE
+#define INCLUDE_ALLOW_VMCORE
+#include "includeCheck.h"
 
 #define X86_MAX_INSTR_LEN  15   /* Max byte length of an x86 instruction. */
 
