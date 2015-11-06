@@ -35,17 +35,6 @@
 
 /* http://www.sandpile.org/ia32/cpuid.htm */
 
-#define INCLUDE_ALLOW_USERLEVEL
-#define INCLUDE_ALLOW_VMX
-
-#define INCLUDE_ALLOW_VMKERNEL
-#define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_DISTRIBUTE
-#define INCLUDE_ALLOW_VMK_MODULE
-#define INCLUDE_ALLOW_VMCORE
-#define INCLUDE_ALLOW_VMMON
-#include "includeCheck.h"
-
 #include "vm_basic_types.h"
 #include "community_source.h"
 #include "x86vendor.h"

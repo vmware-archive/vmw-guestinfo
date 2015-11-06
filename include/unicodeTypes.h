@@ -25,13 +25,6 @@
 #ifndef _UNICODE_TYPES_H_
 #define _UNICODE_TYPES_H_
 
-#define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_USERLEVEL
-#define INCLUDE_ALLOW_VMCORE
-#define INCLUDE_ALLOW_VMKERNEL
-#include "includeCheck.h"
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif

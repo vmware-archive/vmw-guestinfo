@@ -41,12 +41,6 @@
 #ifndef _GUEST_MSG_DEF_H_
 #define _GUEST_MSG_DEF_H_
 
-#define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_USERLEVEL
-
-#include "includeCheck.h"
-
-
 /* Basic request types */
 typedef enum {
    MESSAGE_TYPE_OPEN,

@@ -25,11 +25,6 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_USERLEVEL
-#define INCLUDE_ALLOW_VMCORE
-#include "includeCheck.h"
-
 #include <stdarg.h>
 #include <string.h>
 #ifndef VMKBOOT

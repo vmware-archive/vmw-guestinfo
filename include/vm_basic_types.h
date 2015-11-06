@@ -66,17 +66,6 @@
 #ifndef _VM_BASIC_TYPES_H_
 #define _VM_BASIC_TYPES_H_
 
-#define INCLUDE_ALLOW_USERLEVEL
-
-#define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_VMMON
-#define INCLUDE_ALLOW_VMKERNEL
-#define INCLUDE_ALLOW_VMKDRIVERS
-#define INCLUDE_ALLOW_VMK_MODULE
-#define INCLUDE_ALLOW_DISTRIBUTE
-#define INCLUDE_ALLOW_VMCORE
-#include "includeCheck.h"
-
 /* STRICT ANSI means the Xserver build and X defines Bool differently. */
 #if !defined(_XTYPEDEF_BOOL) && \
     (!defined(__STRICT_ANSI__) || defined(__FreeBSD__) || defined(__MINGW32__))

@@ -64,15 +64,6 @@
 #ifndef _VM_BASIC_DEFS_H_
 #define _VM_BASIC_DEFS_H_
 
-#define INCLUDE_ALLOW_USERLEVEL
-#define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_VMMON
-#define INCLUDE_ALLOW_VMKERNEL
-#define INCLUDE_ALLOW_VMKDRIVERS
-#define INCLUDE_ALLOW_VMK_MODULE
-#define INCLUDE_ALLOW_DISTRIBUTE
-#define INCLUDE_ALLOW_VMCORE
-#include "includeCheck.h"
 #include "vm_basic_types.h" // For INLINE.
 
 /* Checks for FreeBSD, filtering out VMKERNEL. */

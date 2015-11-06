@@ -42,13 +42,6 @@
 #ifndef _BACKDOOR_DEF_H_
 #define _BACKDOOR_DEF_H_
 
-#define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_USERLEVEL
-
-#define INCLUDE_ALLOW_VMCORE
-#define INCLUDE_ALLOW_VMKERNEL
-#include "includeCheck.h"
-
 /*
  * If you want to add a new low-level backdoor call for a guest userland
  * application, please consider using the GuestRpc mechanism instead. --hpreg

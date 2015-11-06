@@ -67,17 +67,6 @@
 #ifndef _VM_ASSERT_H_
 #define _VM_ASSERT_H_
 
-#define INCLUDE_ALLOW_USERLEVEL
-
-#define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_VMMON
-#define INCLUDE_ALLOW_VMKERNEL
-#define INCLUDE_ALLOW_VMKDRIVERS
-#define INCLUDE_ALLOW_VMK_MODULE
-#define INCLUDE_ALLOW_DISTRIBUTE
-#define INCLUDE_ALLOW_VMCORE
-#include "includeCheck.h"
-
 // XXX not necessary except some places include vm_assert.h improperly
 #include "vm_basic_types.h"
 

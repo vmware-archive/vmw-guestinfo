@@ -26,10 +26,6 @@
 #if !defined(_HOSTINFO_H_)
 #define _HOSTINFO_H_
 
-#define INCLUDE_ALLOW_USERLEVEL
-#define INCLUDE_ALLOW_VMCORE
-#include "includeCheck.h"
-
 #include "vm_basic_types.h"
 #include "vm_basic_defs.h"
 #include "x86cpuid.h"

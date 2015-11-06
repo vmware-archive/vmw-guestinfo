@@ -39,16 +39,6 @@
 #ifndef _X86CPUID_ASM_H_
 #define _X86CPUID_ASM_H_
 
-#define INCLUDE_ALLOW_USERLEVEL
-
-#define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_VMMON
-#define INCLUDE_ALLOW_VMK_MODULE
-#define INCLUDE_ALLOW_VMKERNEL
-#define INCLUDE_ALLOW_DISTRIBUTE
-#define INCLUDE_ALLOW_VMCORE
-#include "includeCheck.h"
-
 #include "vm_basic_asm.h"
 #include "x86cpuid.h"
 

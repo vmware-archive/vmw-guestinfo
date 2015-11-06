@@ -39,15 +39,6 @@
 #ifndef _VM_BASIC_ASM_X86_COMMON_H_
 #define _VM_BASIC_ASM_X86_COMMON_H_
 
-#define INCLUDE_ALLOW_USERLEVEL
-#define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_VMMON
-#define INCLUDE_ALLOW_VMK_MODULE
-#define INCLUDE_ALLOW_VMKERNEL
-#define INCLUDE_ALLOW_DISTRIBUTE
-#define INCLUDE_ALLOW_VMCORE
-#include "includeCheck.h"
-
 #ifndef VM_X86_ANY
 #error "Should be included only in x86 builds"
 #endif
