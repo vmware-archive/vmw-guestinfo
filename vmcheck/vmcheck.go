@@ -1,7 +1,7 @@
 package vmcheck
 
 import (
-	"github.com/sigma/vmw-guestinfo/bridge"
+	"github.com/vmware/vmw-guestinfo/bridge"
 )
 
 // IsVirtualWorld returns whether the code is running in a VMware virtual machine or no

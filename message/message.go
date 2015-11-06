@@ -3,7 +3,7 @@ package message
 import (
 	"errors"
 
-	"github.com/sigma/vmw-guestinfo/bridge"
+	"github.com/vmware/vmw-guestinfo/bridge"
 )
 
 var (

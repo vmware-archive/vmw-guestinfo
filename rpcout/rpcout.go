@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/sigma/vmw-guestinfo/message"
+	"github.com/vmware/vmw-guestinfo/message"
 )
 
 // ErrRpciFormat represents an invalid result format

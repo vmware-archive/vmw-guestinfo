@@ -34,8 +34,6 @@
  * vm_basic_asm.h
  *
  *	Basic asm macros
- *
- *        ARM not implemented.
  */
 
 #ifndef _VM_BASIC_ASM_H_
@@ -44,227 +42,18 @@
 #include "vm_basic_types.h"
 
 #if defined VM_X86_64
+#include "vm_basic_asm_x86_common.h"
 #include "vm_basic_asm_x86_64.h"
-#elif defined __i386__
+#elif defined VM_X86_32
+#include "vm_basic_asm_x86_common.h"
 #include "vm_basic_asm_x86.h"
+#elif defined VM_ARM_64
+#include "arm64_basic_defs.h"
+#include "vm_basic_asm_arm64.h"
 #else
 #define MUL64_NO_ASM 1
 #include "mul64.h"
 #endif
-
-/*
- * x86-64 windows doesn't support inline asm so we have to use these
- * intrinsic functions defined in the compiler.  Not all of these are well
- * documented.  There is an array in the compiler dll (c1.dll) which has
- * an array of the names of all the intrinsics minus the leading
- * underscore.  Searching around in the ntddk.h file can also be helpful.
- *
- * The declarations for the intrinsic functions were taken from the DDK.
- * Our declarations must match the ddk's otherwise the 64-bit c++ compiler
- * will complain about second linkage of the intrinsic functions.
- * We define the intrinsic using the basic types corresponding to the
- * Windows typedefs. This avoids having to include windows header files
- * to get to the windows types.
- */
-#ifdef _MSC_VER
-#ifdef __cplusplus
-extern "C" {
-#endif
-/*
- * It seems x86 & x86-64 windows still implements these intrinsic
- * functions.  The documentation for the x86-64 suggest the
- * __inbyte/__outbyte intrinsics even though the _in/_out work fine and
- * __inbyte/__outbyte aren't supported on x86.
- */
-int            _inp(unsigned short);
-unsigned short _inpw(unsigned short);
-unsigned long  _inpd(unsigned short);
-
-int            _outp(unsigned short, int);
-unsigned short _outpw(unsigned short, unsigned short);
-unsigned long  _outpd(uint16, unsigned long);
-#pragma intrinsic(_inp, _inpw, _inpd, _outp, _outpw, _outpw, _outpd)
-
-/*
- * Prevents compiler from re-ordering reads, writes and reads&writes.
- * These functions do not add any instructions thus only affect
- * the compiler ordering.
- *
- * See:
- * `Lockless Programming Considerations for Xbox 360 and Microsoft Windows'
- * http://msdn.microsoft.com/en-us/library/bb310595(VS.85).aspx
- */
-void _ReadBarrier(void);
-void _WriteBarrier(void);
-void _ReadWriteBarrier(void);
-#pragma intrinsic(_ReadBarrier, _WriteBarrier, _ReadWriteBarrier)
-
-void _mm_mfence(void);
-void _mm_lfence(void);
-#pragma intrinsic(_mm_mfence, _mm_lfence)
-
-unsigned int __getcallerseflags(void);
-#pragma intrinsic(__getcallerseflags)
-
-#ifdef VM_X86_64
-/*
- * intrinsic functions only supported by x86-64 windows as of 2k3sp1
- */
-unsigned __int64 __rdtsc(void);
-void             __stosw(unsigned short *, unsigned short, size_t);
-void             __stosd(unsigned long *, unsigned long, size_t);
-void             _mm_pause(void);
-#pragma intrinsic(__rdtsc, __stosw, __stosd, _mm_pause)
-
-unsigned char  _BitScanForward64(unsigned long *, unsigned __int64);
-unsigned char  _BitScanReverse64(unsigned long *, unsigned __int64);
-#pragma intrinsic(_BitScanForward64, _BitScanReverse64)
-#endif /* VM_X86_64 */
-
-unsigned char  _BitScanForward(unsigned long *, unsigned long);
-unsigned char  _BitScanReverse(unsigned long *, unsigned long);
-#pragma intrinsic(_BitScanForward, _BitScanReverse)
-
-unsigned char  _bittest(const long *, long);
-unsigned char  _bittestandset(long *, long);
-unsigned char  _bittestandreset(long *, long);
-unsigned char  _bittestandcomplement(long *, long);
-#pragma intrinsic(_bittest, _bittestandset, _bittestandreset, _bittestandcomplement)
-#ifdef VM_X86_64
-unsigned char  _bittestandset64(__int64 *, __int64);
-unsigned char  _bittestandreset64(__int64 *, __int64);
-#pragma intrinsic(_bittestandset64, _bittestandreset64)
-#endif /* VM_X86_64 */
-#ifdef __cplusplus
-}
-#endif
-#endif /* _MSC_VER */
-
-
-#ifdef __GNUC__ // {
-#if defined(__i386__) || defined(__x86_64__) // Only on x86*
-
-/*
- * Checked against the Intel manual and GCC --hpreg
- *
- * volatile because reading from port can modify the state of the underlying
- * hardware.
- *
- * Note: The undocumented %z construct doesn't work (internal compiler error)
- *       with gcc-2.95.1
- */
-
-#define __GCC_IN(s, type, name) \
-static INLINE type              \
-name(uint16 port)               \
-{                               \
-   type val;                    \
-                                \
-   __asm__ __volatile__(        \
-      "in" #s " %w1, %0"        \
-      : "=a" (val)              \
-      : "Nd" (port)             \
-   );                           \
-                                \
-   return val;                  \
-}
-
-__GCC_IN(b, uint8, INB)
-__GCC_IN(w, uint16, INW)
-__GCC_IN(l, uint32, IN32)
-
-
-/*
- * Checked against the Intel manual and GCC --hpreg
- *
- * Note: The undocumented %z construct doesn't work (internal compiler error)
- *       with gcc-2.95.1
- */
-
-#define __GCC_OUT(s, s2, port, val) do { \
-   __asm__(                              \
-      "out" #s " %" #s2 "1, %w0"         \
-      :                                  \
-      : "Nd" (port), "a" (val)           \
-   );                                    \
-} while (0)
-
-#define OUTB(port, val) __GCC_OUT(b, b, port, val)
-#define OUTW(port, val) __GCC_OUT(w, w, port, val)
-#define OUT32(port, val) __GCC_OUT(l, , port, val)
-
-#define GET_CURRENT_EIP(_eip) \
-      __asm__ __volatile("call 0\n\tpopl %0" : "=r" (_eip): );
-
-static INLINE unsigned int
-GetCallerEFlags(void)
-{
-   unsigned long flags;
-   asm volatile("pushf; pop %0" : "=r"(flags));
-   return flags;
-}
-
-#endif // x86*
-
-#elif defined(_MSC_VER) // } {
-static INLINE  uint8
-INB(uint16 port)
-{
-   return (uint8)_inp(port);
-}
-static INLINE void
-OUTB(uint16 port, uint8 value)
-{
-   _outp(port, value);
-}
-static INLINE uint16
-INW(uint16 port)
-{
-   return _inpw(port);
-}
-static INLINE void
-OUTW(uint16 port, uint16 value)
-{
-   _outpw(port, value);
-}
-static INLINE  uint32
-IN32(uint16 port)
-{
-   return _inpd(port);
-}
-static INLINE void
-OUT32(uint16 port, uint32 value)
-{
-   _outpd(port, value);
-}
-
-#ifndef VM_X86_64
-#ifdef NEAR
-#undef NEAR
-#endif
-
-#define GET_CURRENT_EIP(_eip) do { \
-   __asm call NEAR PTR $+5 \
-   __asm pop eax \
-   __asm mov _eip, eax \
-} while (0)
-#endif // VM_X86_64
-
-static INLINE unsigned int
-GetCallerEFlags(void)
-{
-   return __getcallerseflags();
-}
-
-#else // } {
-#error
-#endif // }
-
-/* Sequence recommended by Intel for the Pentium 4. */
-#define INTEL_MICROCODE_VERSION() (             \
-   __SET_MSR(MSR_BIOS_SIGN_ID, 0),              \
-   __GET_EAX_FROM_CPUID(1),                     \
-   __GET_MSR(MSR_BIOS_SIGN_ID))
 
 /*
  * Locate most and least significant bit set functions. Use our own name
@@ -295,7 +84,7 @@ GetCallerEFlags(void)
  * mssb64      MSB set (uint64)            1..64    0
  */
 
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
 static INLINE int
 lssb32_0(const uint32 value)
 {
@@ -338,7 +127,7 @@ lssb64_0(const uint64 value)
    if (UNLIKELY(value == 0)) {
       return -1;
    } else {
-#if defined(VM_X86_64)
+#ifdef VM_X86_64
       unsigned long idx;
       unsigned char ret;
 
@@ -369,7 +158,7 @@ mssb64_0(const uint64 value)
    if (UNLIKELY(value == 0)) {
       return -1;
    } else {
-#if defined(VM_X86_64)
+#ifdef VM_X86_64
       unsigned long idx;
       unsigned char ret;
 
@@ -391,8 +180,9 @@ mssb64_0(const uint64 value)
 }
 #endif
 
-#if defined(__GNUC__)
-#if defined(__i386__) || defined(__x86_64__) // Only on x86*
+#ifdef __GNUC__
+
+#ifdef VM_X86_ANY
 #define USE_ARCH_X86_CUSTOM
 #endif
 
@@ -428,7 +218,7 @@ mssb64_0(const uint64 value)
 static INLINE int
 lssb32_0(uint32 value)
 {
-#if defined(USE_ARCH_X86_CUSTOM)
+#ifdef USE_ARCH_X86_CUSTOM
    if (!__builtin_constant_p(value)) {
       if (UNLIKELY(value == 0)) {
          return -1;
@@ -455,7 +245,7 @@ mssb32_0(uint32 value)
       return -1;
    } else {
       int pos;
-#if defined(USE_ARCH_X86_CUSTOM)
+#ifdef USE_ARCH_X86_CUSTOM
       if (!__builtin_constant_p(value)) {
          __asm__ ("bsrl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
          return pos;
@@ -469,15 +259,15 @@ mssb32_0(uint32 value)
 static INLINE int
 lssb64_0(const uint64 value)
 {
-#if defined(USE_ARCH_X86_CUSTOM)
+#ifdef USE_ARCH_X86_CUSTOM
    if (!__builtin_constant_p(value)) {
       if (UNLIKELY(value == 0)) {
          return -1;
       } else {
          intptr_t pos;
-   #if defined(VM_X86_64)
+#ifdef VM_X86_64
          __asm__ ("bsf %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-   #else
+#else
          /* The coding was chosen to minimize conditionals and operations */
          pos = lssb32_0((uint32) value);
          if (pos == -1) {
@@ -486,7 +276,7 @@ lssb64_0(const uint64 value)
                return pos + 32;
             }
          }
-   #endif
+#endif
          return pos;
       }
    }
@@ -495,7 +285,7 @@ lssb64_0(const uint64 value)
 }
 #endif /* !FEWER_BUILTINS */
 
-#if defined(FEWER_BUILTINS)
+#ifdef FEWER_BUILTINS
 /* GCC 3.3.x does not like __bulitin_clz or __builtin_ffsll. */
 static INLINE int
 mssb32_0(uint32 value)
@@ -517,9 +307,9 @@ lssb64_0(const uint64 value)
    } else {
       intptr_t pos;
 
-   #if defined(VM_X86_64)
+#ifdef VM_X86_64
       __asm__ __volatile__("bsf %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-   #else
+#else
       /* The coding was chosen to minimize conditionals and operations */
       pos = lssb32_0((uint32) value);
       if (pos == -1) {
@@ -528,7 +318,7 @@ lssb64_0(const uint64 value)
             return pos + 32;
          }
       }
-   #endif /* VM_X86_64 */
+#endif /* VM_X86_64 */
       return pos;
    }
 }
@@ -543,8 +333,8 @@ mssb64_0(const uint64 value)
    } else {
       intptr_t pos;
 
-#if defined(USE_ARCH_X86_CUSTOM)
-#if defined(VM_X86_64)
+#ifdef USE_ARCH_X86_CUSTOM
+#ifdef VM_X86_64
       __asm__ ("bsr %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
 #else
       /* The coding was chosen to minimize conditionals and operations */
@@ -562,16 +352,16 @@ mssb64_0(const uint64 value)
    }
 }
 
-#if defined(USE_ARCH_X86_CUSTOM)
+#ifdef USE_ARCH_X86_CUSTOM
 #undef USE_ARCH_X86_CUSTOM
 #endif
 
-#endif
+#endif // __GNUC__
 
 static INLINE int
 lssbPtr_0(const uintptr_t value)
 {
-#if defined(VM_X86_64)
+#ifdef VM_64BIT
    return lssb64_0((uint64) value);
 #else
    return lssb32_0((uint32) value);
@@ -587,7 +377,7 @@ lssbPtr(const uintptr_t value)
 static INLINE int
 mssbPtr_0(const uintptr_t value)
 {
-#if defined(VM_X86_64)
+#ifdef VM_64BIT
    return mssb64_0((uint64) value);
 #else
    return mssb32_0((uint32) value);
@@ -625,7 +415,7 @@ mssb64(const uint64 value)
 }
 
 #ifdef __GNUC__
-#if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
+#if defined(VM_X86_ANY) || defined(VM_ARM_ANY)
 
 /*
  *----------------------------------------------------------------------
@@ -646,7 +436,7 @@ mssb64(const uint64 value)
 static INLINE void *
 uint16set(void *dst, uint16 val, size_t count)
 {
-#ifdef __arm__
+#ifdef VM_ARM_32
    void *tmpDst = dst;
 
    __asm__ __volatile__ (
@@ -659,7 +449,51 @@ uint16set(void *dst, uint16 val, size_t count)
       "2:"
       : "+r" (tmpDst), "+r" (count)
       : "r" (val)
-      : "memory");
+      : "cc", "memory");
+#elif defined(VM_ARM_64)
+   void   *tmpDst = dst;
+   uint64  tmpVal = 0;
+
+   if (count == 0) {
+      return dst;
+   }
+
+   __asm__ __volatile__ (
+      "cbz     %3, 1f\n\t"
+
+      // Copy 16 bits twice...
+      "bfm     %2, %3, #0, #15\n\t"
+      "lsl     %2, %2, #16\n\t"
+      "bfm     %2, %3, #0, #15\n\t"
+
+      // Copy 32 bits from the bottom of the reg. to the top...
+      "lsl     %2, %2, #32\n\t"
+      "bfm     %2, %2, #32, #63\n"
+
+      // Copy into dst 8 bytes (4 uint16s) at a time
+      "1:\t"
+      "cmp     %1, #4\n\t"
+      "b.lo    2f\n\t"
+      "str     %2, [%0], #8\n\t"
+      "sub     %1, %1, #4\n\t"
+      "b       1b\n"
+
+      // Copy into dst 4 bytes at a time
+      "2:\t"
+      "cmp     %1, #2\n\t"
+      "b.lo    3f\n\t"
+      "str     %w2, [%0], #4\n\t"
+      "sub     %1, %1, #2\n\t"
+      "b       2b\n"
+
+      // We have 1 or zero items left...
+      "3:\t"
+      "cbz     %1, 4f\n\t"
+      "strh    %w2, [%0]\n"
+      "4:"
+      : "+r" (tmpDst), "+r" (count), "+r" (tmpVal)
+      : "r" (val)
+      : "cc", "memory");
 #else
    size_t dummy0;
    void *dummy1;
@@ -695,7 +529,7 @@ uint16set(void *dst, uint16 val, size_t count)
 static INLINE void *
 uint32set(void *dst, uint32 val, size_t count)
 {
-#ifdef __arm__
+#ifdef VM_ARM_32
    void *tmpDst = dst;
 
    __asm__ __volatile__ (
@@ -708,7 +542,48 @@ uint32set(void *dst, uint32 val, size_t count)
       "2:"
       : "+r" (tmpDst), "+r" (count)
       : "r" (val)
-      : "memory");
+      : "cc", "memory");
+#elif defined(VM_ARM_64)
+   void   *tmpDst = dst;
+
+   if (count == 0) {
+      return dst;
+   }
+
+   __asm__ __volatile__ (
+      "cbz     %2, 1f\n\t"
+
+      // Drop our value in the top 32 bits, then copy from there to the bottom
+      "lsl     %2, %2, #32\n\t"
+      "bfm     %2, %2, #32, #63\n"
+
+      // Copy four at a time
+      "1:\t"
+      "cmp     %1, #16\n\t"
+      "b.lo    2f\n\t"
+      "stp     %2, %2, [%0], #16\n\t"
+      "stp     %2, %2, [%0], #16\n\t"
+      "stp     %2, %2, [%0], #16\n\t"
+      "stp     %2, %2, [%0], #16\n\t"
+      "sub     %1, %1, #16\n\t"
+      "b       1b\n"
+
+      // Copy remaining pairs of data
+      "2:\t"
+      "cmp     %1, #2\n\t"
+      "b.lo    3f\n\t"
+      "str     %2, [%0], #8\n\t"
+      "sub     %1, %1, #2\n\t"
+      "b       2b\n"
+
+      // One or zero values left to copy
+      "3:\t"
+      "cbz     %1, 4f\n\t"
+      "str     %w2, [%0]\n\t" // No incr
+      "4:"
+      : "+r" (tmpDst), "+r" (count), "+r" (val)
+      :
+      : "cc", "memory");
 #else
    size_t dummy0;
    void *dummy1;
@@ -744,7 +619,7 @@ uint32set(void *dst, uint32 val, size_t count)
    }
    return dst;
 }
-#endif // defined(__i386__) || defined(__x86_64__) || defined(__arm__)
+#endif // defined(VM_X86_ANY) || defined(VM_ARM_ANY)
 #elif defined(_MSC_VER)
 
 static INLINE void *
@@ -801,8 +676,15 @@ uint32set(void *dst, uint32 val, size_t count)
 static INLINE uint16
 Bswap16(uint16 v)
 {
+#if defined(VM_ARM_64)
+   __asm__("rev16 %0, %0" : "+r"(v));
+   return v;
+#else
    return ((v >> 8) & 0x00ff) | ((v << 8) & 0xff00);
+#endif
 }
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -816,12 +698,7 @@ Bswap16(uint16 v)
 static INLINE uint32
 Bswap32(uint32 v) // IN
 {
-#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__)) || \
-   (defined(__arm__) && !defined(__ANDROID__))  // {
-#ifdef __arm__
-    __asm__("rev %0, %0" : "+r"(v));
-    return v;
-#else // __arm__
+#if defined(__GNUC__) && defined(VM_X86_ANY)
    /* Checked against the Intel manual and GCC. --hpreg */
    __asm__(
       "bswap %0"
@@ -829,13 +706,18 @@ Bswap32(uint32 v) // IN
       : "0" (v)
    );
    return v;
-#endif // !__arm__
-#else // } {
+#elif defined(VM_ARM_32) && !defined(__ANDROID__)
+    __asm__("rev %0, %0" : "+r"(v));
+    return v;
+#elif defined(VM_ARM_64)
+   __asm__("rev32 %0, %0" : "+r"(v));
+    return v;
+#else
    return    (v >> 24)
           | ((v >>  8) & 0xFF00)
           | ((v & 0xFF00) <<  8)
           |  (v << 24)          ;
-#endif // }
+#endif
 }
 #define Bswap Bswap32
 
@@ -853,17 +735,21 @@ Bswap32(uint32 v) // IN
 static INLINE uint64
 Bswap64(uint64 v) // IN
 {
+#if defined(VM_ARM_64)
+   __asm__("rev %0, %0" : "+r"(v));
+   return v;
+#else
    return ((uint64)Bswap((uint32)v) << 32) | Bswap((uint32)(v >> 32));
+#endif
 }
 
 
-#if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
 /*
  * COMPILER_MEM_BARRIER prevents the compiler from re-ordering memory
  * references accross the barrier.  NOTE: It does not generate any
  * instruction, so the CPU is free to do whatever it wants to...
  */
-#ifdef __GNUC__ // {
+#ifdef __GNUC__
 #define COMPILER_MEM_BARRIER()   __asm__ __volatile__ ("": : :"memory")
 #define COMPILER_READ_BARRIER()  COMPILER_MEM_BARRIER()
 #define COMPILER_WRITE_BARRIER() COMPILER_MEM_BARRIER()
@@ -871,7 +757,7 @@ Bswap64(uint64 v) // IN
 #define COMPILER_MEM_BARRIER()   _ReadWriteBarrier()
 #define COMPILER_READ_BARRIER()  _ReadBarrier()
 #define COMPILER_WRITE_BARRIER() _WriteBarrier()
-#endif // }
+#endif
 
 
 /*
@@ -924,7 +810,7 @@ static INLINE void
 PAUSE(void)
 #ifdef __GNUC__
 {
-#if defined(__arm__)
+#ifdef VM_ARM_ANY
    /*
     * ARM has no instruction to execute "spin-wait loop", just leave it
     * empty.
@@ -969,7 +855,7 @@ RDTSC(void)
    );
 
    return tscHigh << 32 | tscLow;
-#elif defined(__i386__)
+#elif defined(VM_X86_32)
    uint64 tim;
 
    __asm__ __volatile__(
@@ -978,6 +864,12 @@ RDTSC(void)
    );
 
    return tim;
+#elif defined(VM_ARM_64)
+#if (defined(VMKERNEL) || defined(VMM)) && !defined(VMK_ARM_EL1)
+   return MRS(CNTPCT_EL0);
+#else
+   return MRS(CNTVCT_EL0);
+#endif
 #else
    /*
     * For platform without cheap timer, just return 0.
@@ -1001,77 +893,27 @@ RDTSC(void)
 #error No compiler defined for RDTSC
 #endif /* __GNUC__  */
 
-#if defined(__i386__) || defined(__x86_64__)
-/*
- *-----------------------------------------------------------------------------
- *
- * RDTSC_BARRIER --
- *
- *      Implements an RDTSC fence.  Instructions executed prior to the
- *      fence will have completed before the fence and all stores to
- *      memory are flushed from the store buffer.
- *
- *      On AMD, MFENCE is sufficient.  On Intel, only LFENCE is
- *      documented to fence RDTSC, but LFENCE won't drain the store
- *      buffer.  So, use MFENCE;LFENCE, which will work on both AMD and
- *      Intel.
- *
- *      It is the callers' responsibility to check for SSE2 before
- *      calling this function.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Cause loads and stores prior to this to be globally visible, and
- *      RDTSC will not pass.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-RDTSC_BARRIER(void)
-{
-#ifdef __GNUC__
-   __asm__ __volatile__(
-      "mfence \n\t"
-      "lfence \n\t"
-      ::: "memory"
-   );
-#elif defined _MSC_VER
-   /* Prevent compiler from moving code across mfence/lfence. */
-   _ReadWriteBarrier();
-   _mm_mfence();
-   _mm_lfence();
-   _ReadWriteBarrier();
-#else
-#error No compiler defined for RDTSC_BARRIER
-#endif
-}
-
-#endif // __i386 || __x86_64__
 
 /*
  *-----------------------------------------------------------------------------
  *
  * DEBUGBREAK --
  *
- *    Does an int3 for MSVC / GCC. This is a macro to make sure int3 is
- *    always inlined.
+ *    Does an int3 for MSVC / GCC, bkpt/brk for ARM. This is a macro to make
+ *    sure int3 is always inlined.
  *
  *-----------------------------------------------------------------------------
  */
 
-#ifdef __arm__
+#ifdef VM_ARM_32
 #define DEBUGBREAK() __asm__("bkpt")
-#else
-#ifdef _MSC_VER
+#elif defined(VM_ARM_64)
+#define DEBUGBREAK() __asm__("brk #0")
+#elif defined(_MSC_VER)
 #define DEBUGBREAK() __debugbreak()
 #else
 #define DEBUGBREAK() __asm__("int $3")
 #endif
-#endif // __arm__
-#endif // defined(__i386__) || defined(__x86_64__) || defined(__arm__)
 
 
 /*
@@ -1080,12 +922,14 @@ RDTSC_BARRIER(void)
  * {Clear,Set,Test}Bit{32,64} --
  *
  *    Sets or clears a specified single bit in the provided variable.
+ *
  *    The index input value specifies which bit to modify and is 0-based.
  *    Index is truncated by hardware to a 5-bit or 6-bit offset for the
  *    32 and 64-bit flavors, respectively, but input values are not validated
  *    with asserts to avoid include dependencies.
- *    64-bit flavors are not provided for 32-bit builds because the inlined
- *    version can defeat user or compiler optimizations.
+ *
+ *    64-bit flavors are not handcrafted for 32-bit builds because they may
+ *    defeat compiler optimizations.
  *
  *-----------------------------------------------------------------------------
  */
@@ -1093,7 +937,7 @@ RDTSC_BARRIER(void)
 static INLINE void
 SetBit32(uint32 *var, uint32 index)
 {
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(VM_X86_ANY)
    __asm__ (
       "bts %1, %0"
       : "+mr" (*var)
@@ -1102,13 +946,15 @@ SetBit32(uint32 *var, uint32 index)
    );
 #elif defined(_MSC_VER)
    _bittestandset((long *)var, index);
+#else
+   *var |= (1 << index);
 #endif
 }
 
 static INLINE void
 ClearBit32(uint32 *var, uint32 index)
 {
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(VM_X86_ANY)
    __asm__ (
       "btr %1, %0"
       : "+mr" (*var)
@@ -1117,13 +963,15 @@ ClearBit32(uint32 *var, uint32 index)
    );
 #elif defined(_MSC_VER)
    _bittestandreset((long *)var, index);
+#else
+   *var &= ~(1 << index);
 #endif
 }
 
-#if defined(VM_X86_64)
 static INLINE void
 SetBit64(uint64 *var, uint64 index)
 {
+#if defined(VM_64BIT) && !defined(VM_ARM_64)
 #ifdef __GNUC__
    __asm__ (
       "bts %1, %0"
@@ -1131,14 +979,18 @@ SetBit64(uint64 *var, uint64 index)
       : "rJ" (index)
       : "cc"
    );
-#elif defined _MSC_VER
+#elif defined(_MSC_VER)
    _bittestandset64((__int64 *)var, index);
+#endif
+#else
+   *var |= ((uint64)1 << index);
 #endif
 }
 
 static INLINE void
 ClearBit64(uint64 *var, uint64 index)
 {
+#if defined(VM_64BIT) && !defined(VM_ARM_64)
 #ifdef __GNUC__
    __asm__ (
       "btrq %1, %0"
@@ -1146,16 +998,18 @@ ClearBit64(uint64 *var, uint64 index)
       : "rJ" (index)
       : "cc"
    );
-#elif defined _MSC_VER
+#elif defined(_MSC_VER)
    _bittestandreset64((__int64 *)var, index);
 #endif
+#else
+   *var &= ~((uint64)1 << index);
+#endif
 }
-#endif /* VM_X86_64 */
 
 static INLINE Bool
 TestBit32(const uint32 *var, uint32 index)
 {
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
    __asm__ (
       "bt %[index], %[var] \n"
@@ -1206,12 +1060,12 @@ TestBit64(const uint64 *var, uint64 index)
 static INLINE Bool
 SetBitVector(void *var, int32 index)
 {
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
    __asm__ (
       "bts %2, %1;"
       "setc %0"
-      : "=qQm" (bit), "+m" (*(volatile uint32 *)var)
+      : "=qQm" (bit), "+m" (*(uint32 *)var)
       : "rI" (index)
       : "memory", "cc"
    );
@@ -1219,19 +1073,21 @@ SetBitVector(void *var, int32 index)
 #elif defined(_MSC_VER)
    return _bittestandset((long *)var, index) != 0;
 #else
-#error No compiler defined for SetBitVector
+   Bool retVal = (((uint8 *)var)[index / 8] & (1 << (index % 8))) != 0;
+   ((uint8 *)var)[index / 8] |= 1 << (index % 8);
+   return retVal;
 #endif
 }
 
 static INLINE Bool
 ClearBitVector(void *var, int32 index)
 {
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
    __asm__ (
       "btr %2, %1;"
       "setc %0"
-      : "=qQm" (bit), "+m" (*(volatile uint32 *)var)
+      : "=qQm" (bit), "+m" (*(uint32 *)var)
       : "rI" (index)
       : "cc"
    );
@@ -1239,19 +1095,21 @@ ClearBitVector(void *var, int32 index)
 #elif defined(_MSC_VER)
    return _bittestandreset((long *)var, index) != 0;
 #else
-#error No compiler defined for ClearBitVector
+   Bool retVal = (((uint8 *)var)[index / 8] & (1 << (index % 8))) != 0;
+   ((uint8 *)var)[index / 8] &= ~(1 << (index % 8));
+   return retVal;
 #endif
 }
 
 static INLINE Bool
 ComplementBitVector(void *var, int32 index)
 {
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
    __asm__ (
       "btc %2, %1;"
       "setc %0"
-      : "=qQm" (bit), "+m" (*(volatile uint32 *)var)
+      : "=qQm" (bit), "+m" (*(uint32 *)var)
       : "rI" (index)
       : "cc"
    );
@@ -1259,14 +1117,16 @@ ComplementBitVector(void *var, int32 index)
 #elif defined(_MSC_VER)
    return _bittestandcomplement((long *)var, index) != 0;
 #else
-#error No compiler defined for ComplementBitVector
+   Bool retVal = (((uint8 *)var)[index / 8] & (1 << (index % 8))) != 0;
+   ((uint8 *)var)[index / 8] ^= ~(1 << (index % 8));
+   return retVal;
 #endif
 }
 
 static INLINE Bool
 TestBitVector(const void *var, int32 index)
 {
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
    __asm__ (
       "bt %2, %1;"
@@ -1279,7 +1139,7 @@ TestBitVector(const void *var, int32 index)
 #elif defined _MSC_VER
    return _bittest((long *)var, index) != 0;
 #else
-#error No compiler defined for TestBitVector
+   return (((const uint8 *)var)[index / 8] & (1 << (index % 8))) != 0;
 #endif
 }
 
@@ -1304,7 +1164,7 @@ RoundUpPow2C64(uint64 value)
    }
 }
 
-#if defined(VM_X86_64) && defined(__GNUC__)
+#if defined(__GNUC__) && defined(VM_X86_64)
 static INLINE uint64
 RoundUpPow2Asm64(uint64 value)
 {
@@ -1326,7 +1186,7 @@ RoundUpPow2Asm64(uint64 value)
 static INLINE uint64
 RoundUpPow2_64(uint64 value)
 {
-#if defined(VM_X86_64) && defined(__GNUC__)
+#if defined(__GNUC__) && defined(VM_X86_64)
    if (__builtin_constant_p(value)) {
       return RoundUpPow2C64(value);
    } else {
@@ -1351,7 +1211,7 @@ RoundUpPow2C32(uint32 value)
 static INLINE uint32
 RoundUpPow2Asm32(uint32 value)
 {
-#ifdef __arm__
+#ifdef VM_ARM_32
    uint32 out = 1;
    // Note: None Thumb only!
    //       The value of the argument "value"
@@ -1364,6 +1224,8 @@ RoundUpPow2Asm32(uint32 value)
                                            // if out == 2^32 then out = 1 as it is right rotate
        : [in]"+r"(value),[out]"+r"(out));
    return out;
+#elif defined(VM_ARM_64)
+   return RoundUpPow2C32(value);
 #else
    uint32 out = 2;
 
