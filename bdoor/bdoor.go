@@ -1,17 +1,15 @@
-package message
+package bdoor
 
 const (
-	VMWARE_BDOOR_MAGIC  = uint64(0x564D5868)
-	VMWARE_BDOOR_PORT   = uint16(0x5658)
-	VMWARE_BDOORHB_PORT = uint16(0x5659)
+	BackdoorMagic      = uint64(0x564D5868)
+	BackdoorPort       = uint16(0x5658)
+	BackdoorHighBWPort = uint16(0x5659)
 
-	VMWARE_BDOOR_CMD_GETVERSION           = uint32(10)
-	VMWARE_BDOOR_CMD_GETDEVICELISTELEMENT = uint32(11)
-	VMWARE_BDOOR_CMD_TOGGLEDEVICE         = uint32(12)
+	CommandGetVersion = uint32(10)
 
-	VMWARE_BDOOR_CMD_MESSAGE   = uint16(0x1e)
-	VMWARE_BDOORHB_CMD_MESSAGE = uint16(0)
-	GUESTMSG_FLAG_COOKIE       = uint32(0x80000000)
+	CommandMessage       = uint16(0x1e)
+	CommandHighBWMessage = uint16(0)
+	CommandFlagCookie    = uint32(0x80000000)
 )
 
 type BackdoorProto struct {
@@ -44,8 +42,8 @@ func bdoor_hbin(ax, bx, cx, dx, si, di, bp uint64) (retax, retbx, retcx, retdx, 
 func bdoor_inout_test(ax, bx, cx, dx, si, di, bp uint64) (retax, retbx, retcx, retdx, retsi, retdi, retbp uint64)
 
 func (p *BackdoorProto) InOut() *BackdoorProto {
-	p.DX.Low.Low = VMWARE_BDOOR_PORT
-	p.AX.SetQuad(VMWARE_BDOOR_MAGIC)
+	p.DX.Low.Low = BackdoorPort
+	p.AX.SetQuad(BackdoorMagic)
 
 	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_inout(
 		p.AX.Quad(),
@@ -71,8 +69,8 @@ func (p *BackdoorProto) InOut() *BackdoorProto {
 
 func (p *BackdoorProto) HighBandwidthOut() *BackdoorProto {
 
-	p.DX.Low.Low = VMWARE_BDOORHB_PORT
-	p.AX.SetQuad(VMWARE_BDOOR_MAGIC)
+	p.DX.Low.Low = BackdoorHighBWPort
+	p.AX.SetQuad(BackdoorMagic)
 
 	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_hbout(
 		p.AX.Quad(),
@@ -98,8 +96,8 @@ func (p *BackdoorProto) HighBandwidthOut() *BackdoorProto {
 
 func (p *BackdoorProto) HighBandwidthIn() *BackdoorProto {
 
-	p.DX.Low.Low = VMWARE_BDOORHB_PORT
-	p.AX.SetQuad(VMWARE_BDOOR_MAGIC)
+	p.DX.Low.Low = BackdoorHighBWPort
+	p.AX.SetQuad(BackdoorMagic)
 
 	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_hbin(
 		p.AX.Quad(),

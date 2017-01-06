@@ -5,21 +5,23 @@ import (
 	"encoding/binary"
 	"errors"
 	"unsafe"
+
+	"github.com/vmware/vmw-guestinfo/bdoor"
 )
 
 const (
-	MESSAGE_TYPE_OPEN = iota
-	MESSAGE_TYPE_SENDSIZE
-	MESSAGE_TYPE_SENDPAYLOAD
-	MESSAGE_TYPE_RECVSIZE
-	MESSAGE_TYPE_RECVPAYLOAD
-	MESSAGE_TYPE_RECVSTATUS
-	MESSAGE_TYPE_CLOSE
+	MessageTypeOpen = iota
+	MessageTypeSendSize
+	MessageTypeSendPayload
+	MessageTypeReceiveSize
+	MessageTypeReceivePayload
+	MessageTypeReceiveStatus
+	MessageTypeClose
 
-	MESSAGE_STATUS_SUCCESS = uint16(0x0001)
-	MESSAGE_STATUS_DORECV  = uint16(0x0002)
-	MESSAGE_STATUS_CPT     = uint16(0x0010)
-	MESSAGE_STATUS_HB      = uint16(0x0080)
+	MessageStatusSuccess   = uint16(0x0001)
+	MessageSatusDoReceive  = uint16(0x0002)
+	MessageSatusCheckPoint = uint16(0x0010)
+	MessageSatusHighBW     = uint16(0x0080)
 )
 
 var (
@@ -36,25 +38,25 @@ var (
 type Channel struct {
 	id uint16
 
-	forcelowbandwidth bool
-	buf               []byte
+	forceLowBW bool
+	buf        []byte
 
-	cookie UInt64
+	cookie bdoor.UInt64
 }
 
 // NewChannel opens a new Channel
 func NewChannel(proto uint32) (*Channel, error) {
-	flags := GUESTMSG_FLAG_COOKIE
+	flags := bdoor.CommandFlagCookie
 
 retry:
-	bp := &BackdoorProto{}
+	bp := &bdoor.BackdoorProto{}
 
 	bp.BX.Low.SetWord(proto | flags)
-	bp.CX.Low.High = MESSAGE_TYPE_OPEN
-	bp.CX.Low.Low = VMWARE_BDOOR_CMD_MESSAGE
+	bp.CX.Low.High = MessageTypeOpen
+	bp.CX.Low.Low = bdoor.CommandMessage
 
 	out := bp.InOut()
-	if (out.CX.Low.High & MESSAGE_STATUS_SUCCESS) == 0 {
+	if (out.CX.Low.High & MessageStatusSuccess) == 0 {
 		if flags != 0 {
 			flags = 0
 			goto retry
@@ -74,18 +76,17 @@ retry:
 }
 
 func (c *Channel) Close() error {
-	bp := &BackdoorProto{}
+	bp := &bdoor.BackdoorProto{}
 
-	bp.CX.Low.High = MESSAGE_TYPE_CLOSE
-	bp.CX.Low.Low = VMWARE_BDOOR_CMD_MESSAGE
+	bp.CX.Low.High = MessageTypeClose
+	bp.CX.Low.Low = bdoor.CommandMessage
 
 	bp.DX.Low.High = c.id
 	bp.SI.Low.SetWord(c.cookie.High.Word())
 	bp.DI.Low.SetWord(c.cookie.Low.Word())
 
 	out := bp.InOut()
-	if (out.CX.Low.High & MESSAGE_STATUS_SUCCESS) == 0 {
-
+	if (out.CX.Low.High & MessageStatusSuccess) == 0 {
 		Errorf("Message: Unable to close communication channel %d", c.id)
 		return ErrChannelClose
 	}
@@ -96,9 +97,9 @@ func (c *Channel) Close() error {
 
 func (c *Channel) Send(buf []byte) error {
 retry:
-	bp := &BackdoorProto{}
-	bp.CX.Low.High = MESSAGE_TYPE_SENDSIZE
-	bp.CX.Low.Low = VMWARE_BDOOR_CMD_MESSAGE
+	bp := &bdoor.BackdoorProto{}
+	bp.CX.Low.High = MessageTypeSendSize
+	bp.CX.Low.Low = bdoor.CommandMessage
 
 	bp.DX.Low.High = c.id
 	bp.SI.Low.SetWord(c.cookie.High.Word())
@@ -108,16 +109,16 @@ retry:
 
 	// send the size
 	out := bp.InOut()
-	if (out.CX.Low.High & MESSAGE_STATUS_SUCCESS) == 0 {
+	if (out.CX.Low.High & MessageStatusSuccess) == 0 {
 		Errorf("Message: Unable to send a message over the communication channel %d", c.id)
 		return ErrRpciSend
 	}
 
-	if !c.forcelowbandwidth && (out.CX.Low.High&MESSAGE_STATUS_HB) == MESSAGE_STATUS_HB {
-		hbbp := &BackdoorProto{}
+	if !c.forceLowBW && (out.CX.Low.High&MessageSatusHighBW) == MessageSatusHighBW {
+		hbbp := &bdoor.BackdoorProto{}
 
-		hbbp.BX.Low.Low = VMWARE_BDOORHB_CMD_MESSAGE
-		hbbp.BX.Low.High = MESSAGE_STATUS_SUCCESS
+		hbbp.BX.Low.Low = bdoor.CommandHighBWMessage
+		hbbp.BX.Low.High = MessageStatusSuccess
 		hbbp.DX.Low.High = c.id
 		hbbp.BP.Low.SetWord(c.cookie.High.Word())
 		hbbp.DI.Low.SetWord(c.cookie.Low.Word())
@@ -125,9 +126,8 @@ retry:
 		hbbp.SI.SetQuad(uint64(uintptr(unsafe.Pointer(&buf[0]))))
 
 		out := hbbp.HighBandwidthOut()
-		if (out.BX.Low.High & MESSAGE_STATUS_SUCCESS) == 0 {
-
-			if (out.BX.Low.High & MESSAGE_STATUS_CPT) != 0 {
+		if (out.BX.Low.High & MessageStatusSuccess) == 0 {
+			if (out.BX.Low.High & MessageSatusCheckPoint) != 0 {
 				Debugf("A checkpoint occurred. Retrying the operation")
 				goto retry
 			}
@@ -135,14 +135,11 @@ retry:
 			Errorf("Message: Unable to send a message over the communication channel %d", c.id)
 			return ErrRpciSend
 		}
-
 	} else {
-
-		bp.CX.Low.High = MESSAGE_TYPE_SENDPAYLOAD
+		bp.CX.Low.High = MessageTypeSendPayload
 
 		bbuf := bytes.NewBuffer(buf)
 		for {
-
 			// read 4 bytes at a time
 			words := bbuf.Next(4)
 			if len(words) == 0 {
@@ -151,22 +148,18 @@ retry:
 
 			Debugf("sending %q over %d", string(words), c.id)
 			switch len(words) {
-			case 0:
-				break
-
 			case 3:
 				bp.BX.Low.SetWord(binary.LittleEndian.Uint32([]byte{0x0, words[2], words[1], words[0]}))
 			case 2:
 				bp.BX.Low.SetWord(uint32(binary.LittleEndian.Uint16(words)))
 			case 1:
 				bp.BX.Low.SetWord(uint32(words[0]))
-
 			default:
 				bp.BX.Low.SetWord(binary.LittleEndian.Uint32(words))
 			}
 
 			out = bp.InOut()
-			if (out.CX.Low.High & MESSAGE_STATUS_SUCCESS) == 0 {
+			if (out.CX.Low.High & MessageStatusSuccess) == 0 {
 				Errorf("Message: Unable to send a message over the communication channel %d", c.id)
 				return ErrRpciSend
 			}
@@ -179,27 +172,27 @@ retry:
 func (c *Channel) Receive() ([]byte, error) {
 retry:
 	var err error
-	bp := &BackdoorProto{}
-	bp.CX.Low.High = MESSAGE_TYPE_RECVSIZE
-	bp.CX.Low.Low = VMWARE_BDOOR_CMD_MESSAGE
+	bp := &bdoor.BackdoorProto{}
+	bp.CX.Low.High = MessageTypeReceiveSize
+	bp.CX.Low.Low = bdoor.CommandMessage
 
 	bp.DX.Low.High = c.id
 	bp.SI.Low.SetWord(c.cookie.High.Word())
 	bp.DI.Low.SetWord(c.cookie.Low.Word())
 
 	out := bp.InOut()
-	if (out.CX.Low.High & MESSAGE_STATUS_SUCCESS) == 0 {
+	if (out.CX.Low.High & MessageStatusSuccess) == 0 {
 		Errorf("Message: Unable to poll for messages over the communication channel %d", c.id)
 		return nil, ErrRpciReceive
 	}
 
-	if (out.CX.Low.High & MESSAGE_STATUS_DORECV) == 0 {
+	if (out.CX.Low.High & MessageSatusDoReceive) == 0 {
 		Debugf("No message to retrieve")
 		return nil, nil
 	}
 
 	// Receive the size.
-	if out.DX.Low.High != MESSAGE_TYPE_SENDSIZE {
+	if out.DX.Low.High != MessageTypeSendSize {
 		Errorf("Message: Protocol error. Expected a MESSAGE_TYPE_SENDSIZE request from vmware")
 		return nil, ErrRpciReceive
 	}
@@ -207,13 +200,13 @@ retry:
 	size := out.BX.Quad()
 	var buf []byte
 
-	if !c.forcelowbandwidth && (out.CX.Low.High&MESSAGE_STATUS_HB) == MESSAGE_STATUS_HB {
+	if !c.forceLowBW && (out.CX.Low.High&MessageSatusHighBW) == MessageSatusHighBW {
 		buf = make([]byte, size)
 
-		hbbp := &BackdoorProto{}
+		hbbp := &bdoor.BackdoorProto{}
 
-		hbbp.BX.Low.Low = VMWARE_BDOORHB_CMD_MESSAGE
-		hbbp.BX.Low.High = MESSAGE_STATUS_SUCCESS
+		hbbp.BX.Low.Low = bdoor.CommandHighBWMessage
+		hbbp.BX.Low.High = MessageStatusSuccess
 		hbbp.DX.Low.High = c.id
 		hbbp.SI.Low.SetWord(c.cookie.High.Word())
 		hbbp.BP.Low.SetWord(c.cookie.Low.Word())
@@ -221,27 +214,24 @@ retry:
 		hbbp.DI.SetQuad(uint64(uintptr(unsafe.Pointer(&buf[0]))))
 
 		out := hbbp.HighBandwidthIn()
-		if (out.BX.Low.High & MESSAGE_STATUS_SUCCESS) == 0 {
+		if (out.BX.Low.High & MessageStatusSuccess) == 0 {
 			Errorf("Message: Unable to send a message over the communication channel %d", c.id)
 			return nil, ErrRpciReceive
 		}
-
 	} else {
-
 		b := bytes.NewBuffer(make([]byte, 0, size))
 
 		for {
-
 			if size == 0 {
 				break
 			}
 
-			bp.CX.Low.High = MESSAGE_TYPE_RECVPAYLOAD
-			bp.BX.Low.Low = MESSAGE_STATUS_SUCCESS
+			bp.CX.Low.High = MessageTypeReceivePayload
+			bp.BX.Low.Low = MessageStatusSuccess
 
 			out = bp.InOut()
-			if (out.CX.Low.High & MESSAGE_STATUS_SUCCESS) == 0 {
-				if (out.CX.Low.High & MESSAGE_STATUS_CPT) != 0 {
+			if (out.CX.Low.High & MessageStatusSuccess) == 0 {
+				if (out.CX.Low.High & MessageSatusCheckPoint) != 0 {
 					Debugf("A checkpoint occurred. Retrying the operation")
 					goto retry
 				}
@@ -250,7 +240,7 @@ retry:
 				return nil, ErrRpciReceive
 			}
 
-			if out.DX.Low.High != MESSAGE_TYPE_SENDPAYLOAD {
+			if out.DX.Low.High != MessageTypeSendPayload {
 				Errorf("Message: Protocol error. Expected a MESSAGE_TYPE_SENDPAYLOAD from vmware")
 				return nil, ErrRpciReceive
 			}

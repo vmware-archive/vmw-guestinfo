@@ -1,4 +1,4 @@
-package message
+package bdoor
 
 type UInt32 struct {
 	High uint16

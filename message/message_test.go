@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	sigma "github.com/sigma/bdoor"
+	"github.com/vmware/vmw-guestinfo/util"
 )
 
 const rpciProtocolNum uint32 = 0x49435052
@@ -18,51 +19,51 @@ func TestOpenClose(t *testing.T) {
 	}
 
 	ch, err := NewChannel(rpciProtocolNum)
-	if !AssertNotNil(t, ch) || !AssertNoError(t, err) {
+	if !util.AssertNotNil(t, ch) || !util.AssertNoError(t, err) {
 		return
 	}
 
 	// check low bandwidth
-	ch.forcelowbandwidth = true
+	ch.forceLowBW = true
 	err = ch.Send([]byte("info-get guestinfo.doesnotexistdoesnotexit"))
-	if !AssertNoError(t, err) {
+	if !util.AssertNoError(t, err) {
 		return
 	}
 
 	b, err := ch.Receive()
-	if !AssertNoError(t, err) || !AssertNotNil(t, b) {
+	if !util.AssertNoError(t, err) || !util.AssertNotNil(t, b) {
 		return
 	}
 
-	if !AssertEqual(t, "0 No value found", string(b)) {
+	if !util.AssertEqual(t, "0 No value found", string(b)) {
 		return
 	}
 
-	if !AssertNoError(t, ch.Close()) {
+	if !util.AssertNoError(t, ch.Close()) {
 		return
 	}
 
 	// check high bandwidth
 	ch, err = NewChannel(rpciProtocolNum)
-	if !AssertNotNil(t, ch) || !AssertNoError(t, err) {
+	if !util.AssertNotNil(t, ch) || !util.AssertNoError(t, err) {
 		return
 	}
 
 	err = ch.Send([]byte("info-get guestinfo.doesnotexistdoesnotexit"))
-	if !AssertNoError(t, err) {
+	if !util.AssertNoError(t, err) {
 		return
 	}
 
 	b, err = ch.Receive()
-	if !AssertNoError(t, err) || !AssertNotNil(t, b) {
+	if !util.AssertNoError(t, err) || !util.AssertNotNil(t, b) {
 		return
 	}
 
-	if !AssertEqual(t, "0 No value found", string(b)) {
+	if !util.AssertEqual(t, "0 No value found", string(b)) {
 		return
 	}
 
-	if !AssertNoError(t, ch.Close()) {
+	if !util.AssertNoError(t, ch.Close()) {
 		return
 	}
 }

@@ -1,9 +1,11 @@
 package message
 
-func HypervisorPortCheck() bool {
-	p := &BackdoorProto{}
+import "github.com/vmware/vmw-guestinfo/bdoor"
 
-	p.CX.Low.SetWord(VMWARE_BDOOR_CMD_GETVERSION)
+func HypervisorPortCheck() bool {
+	p := &bdoor.BackdoorProto{}
+
+	p.CX.Low.SetWord(bdoor.CommandGetVersion)
 
 	out := p.InOut()
 

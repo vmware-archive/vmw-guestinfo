@@ -1,4 +1,4 @@
-package message
+package bdoor
 
 import (
 	"testing"
@@ -13,11 +13,11 @@ func TestSetWord(t *testing.T) {
 	out.Low = inLow
 	out.High = inHigh
 
-	if !AssertEqual(t, inLow, out.Low) || !AssertEqual(t, inHigh, out.High) {
+	if !util.util.AssertEqual(t, inLow, out.Low) || !util.AssertEqual(t, inHigh, out.High) {
 		return
 	}
 
-	if !AssertEqual(t, uint32(0xBBBBEEFF), out.Word()) {
+	if !util.AssertEqual(t, uint32(0xBBBBEEFF), out.Word()) {
 		return
 	}
 }
@@ -27,15 +27,15 @@ func TestQuadToHighLow(t *testing.T) {
 
 	var u UInt64
 	u.SetQuad(in)
-	if !AssertEqual(t, uint32(in), u.Low.Word()) {
+	if !util.AssertEqual(t, uint32(in), u.Low.Word()) {
 		return
 	}
 
-	if !AssertEqual(t, uint32(in>>32), u.High.Word()) {
+	if !util.AssertEqual(t, uint32(in>>32), u.High.Word()) {
 		return
 	}
 
-	if !AssertEqual(t, in, u.Quad()) {
+	if !util.AssertEqual(t, in, u.Quad()) {
 		return
 	}
 }
@@ -49,7 +49,7 @@ func TestHighLowToQuad(t *testing.T) {
 		Low:  UInt32{Low: inLow},
 	}
 
-	if !AssertEqual(t, (uint64(inHigh)<<48)+uint64(inLow), u.Quad()) {
+	if !util.AssertEqual(t, (uint64(inHigh)<<48)+uint64(inLow), u.Quad()) {
 		return
 	}
 }
