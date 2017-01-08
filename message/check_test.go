@@ -17,11 +17,11 @@ package message
 import (
 	"testing"
 
-	sigma "github.com/sigma/bdoor"
+	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
 
 func TestHypervisorPortCheck(t *testing.T) {
-	if !sigma.HypervisorPortCheck() {
+	if !vmcheck.IsVirtualWorld() {
 		t.Skip("Not in a virtual world")
 		return
 	}

@@ -17,8 +17,8 @@ package message
 import (
 	"testing"
 
-	sigma "github.com/sigma/bdoor"
 	"github.com/vmware/vmw-guestinfo/util"
+	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
 
 const rpciProtocolNum uint32 = 0x49435052
@@ -27,7 +27,7 @@ func TestOpenClose(t *testing.T) {
 	l := DefaultLogger.(*logger)
 	l.DebugLevel = true
 
-	if !sigma.HypervisorPortCheck() {
+	if !vmcheck.IsVirtualWorld() {
 		t.Skip("Not in a virtual world")
 		return
 	}
