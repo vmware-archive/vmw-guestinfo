@@ -15,6 +15,7 @@
 package message
 
 import (
+	"os"
 	"testing"
 
 	"github.com/vmware/vmw-guestinfo/util"
@@ -90,6 +91,11 @@ func TestReset(t *testing.T) {
 
 	if !vmcheck.IsVirtualWorld() {
 		t.Skip("Not in a virtual world")
+		return
+	}
+
+	if os.Getenv("TEST_TOOLBOX") == "" {
+		t.Skip("Skipping toolbox test")
 		return
 	}
 
