@@ -14,11 +14,17 @@
 
 package vmcheck
 
-import (
-	"github.com/sigma/bdoor"
-)
+import "github.com/vmware/vmw-guestinfo/bdoor"
 
-// IsVirtualWorld returns whether the code is running in a VMware virtual machine or no
+// IsVirtualWorld returns true if running in a VM.
+// NOTE:  This will PANIC if not run in a virtual world
 func IsVirtualWorld() bool {
-	return bdoor.HypervisorPortCheck()
+	p := &bdoor.BackdoorProto{}
+	p.CX.Low.SetWord(bdoor.CommandGetVersion)
+
+	// TODO(FA) get this inside a fork() call and collect the return code since
+	// we can't mask the SIGSEGV signal.
+	out := p.InOut()
+
+	return 0 != out.AX.Low.Word()
 }

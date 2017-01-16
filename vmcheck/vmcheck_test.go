@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package message
+package vmcheck
 
-import "github.com/vmware/vmw-guestinfo/bdoor"
+import (
+	"testing"
 
-func HypervisorPortCheck() bool {
-	p := &bdoor.BackdoorProto{}
+	"github.com/sigma/bdoor"
+)
 
-	p.CX.Low.SetWord(bdoor.CommandGetVersion)
+func TestHypervisorPortCheck(t *testing.T) {
+	if !bdoor.HypervisorPortCheck() {
+		t.Skip("Not in a virtual world")
+		return
+	}
 
-	out := p.InOut()
-
-	Infof("version %d", out.AX.Low.Word())
-	return 0 != out.AX.Low.Word()
+	t.Log("Running in a VM: ", IsVirtualWorld())
 }
