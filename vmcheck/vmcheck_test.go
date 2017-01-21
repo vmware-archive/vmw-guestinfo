@@ -14,17 +14,8 @@
 
 package vmcheck
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/sigma/bdoor"
-)
-
-func TestHypervisorPortCheck(t *testing.T) {
-	if !bdoor.HypervisorPortCheck() {
-		t.Skip("Not in a virtual world")
-		return
-	}
-
+func TestIsVirtualWorld(t *testing.T) {
 	t.Log("Running in a VM: ", IsVirtualWorld())
 }
