@@ -14,8 +14,16 @@
 
 package vmcheck
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/vmware/vmw-guestinfo/util"
+)
 
 func TestIsVirtualWorld(t *testing.T) {
-	t.Log("Running in a VM: ", IsVirtualWorld())
+	isVM, err := IsVirtualWorld()
+	if !util.AssertNoError(t, err) {
+		return
+	}
+	t.Log("Running in a VM: ", isVM)
 }

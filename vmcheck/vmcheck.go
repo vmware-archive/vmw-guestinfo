@@ -16,6 +16,7 @@ package vmcheck
 
 import (
 	"encoding/binary"
+	"syscall"
 
 	"github.com/vmware/vmw-guestinfo/bdoor"
 )
@@ -23,29 +24,32 @@ import (
 func cpuid_low(arg1, arg2 uint32) (eax, ebx, ecx, edx uint32)
 
 // IsVirtualWorld returns true if running in a VM.
-func IsVirtualWorld() bool {
+func IsVirtualWorld() (bool, error) {
 	// Test the HV bit is set
 	if !CPUisVM() {
-		return false
+		return false, nil
 	}
 
 	// Test if backdoor port is available.
-	if !HypervisorPortCheck() {
-		return false
+	if isVM, err := HypervisorPortCheck(); err != nil || !isVM {
+		return isVM, err
 	}
 
-	return true
+	return true, nil
 }
 
-func HypervisorPortCheck() bool {
+func HypervisorPortCheck() (bool, error) {
+	if err := syscall.Ioperm(int(bdoor.BackdoorPort), int(bdoor.BackdoorPort)+1, 1); err != nil {
+		return false, err
+	}
+
 	p := &bdoor.BackdoorProto{}
 	p.CX.Low.SetWord(bdoor.CommandGetVersion)
 
-	// TODO(FA) get this inside a fork() call and collect the return code since
-	// we can't mask the SIGSEGV signal.
 	out := p.InOut()
 
-	return 0 != out.AX.Low.Word()
+	// if there is no device, we get back all 1s
+	return (0xffffffff != out.AX.Low.Word()) && (0 != out.AX.Low.Word()), nil
 }
 
 // CPUisVM checks for the HV bit in the ECX register of the CPUID leaf 0x1.
