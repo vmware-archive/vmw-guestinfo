@@ -21,6 +21,14 @@ import (
 )
 
 func TestIsVirtualWorld(t *testing.T) {
+	isVm, err := HypervisorPortCheck()
+	if !util.AssertNoError(t, err) {
+		return
+	}
+
+	t.Log("Backdoor available: ", isVm)
+	t.Log("CPU HV: ", CPUisVM())
+
 	isVM, err := IsVirtualWorld()
 	if !util.AssertNoError(t, err) {
 		return

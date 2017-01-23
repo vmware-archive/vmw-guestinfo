@@ -40,8 +40,9 @@ func IsVirtualWorld() (bool, error) {
 	return true, nil
 }
 
+// HypervisorPortCheck tests the availability of the HV port. This only works on kernel versions 2.6.18+.
 func HypervisorPortCheck() (bool, error) {
-	if err := syscall.Ioperm(int(bdoor.BackdoorPort), int(bdoor.BackdoorPort)+1, 1); err != nil {
+	if err := syscall.Ioperm(int(bdoor.BackdoorPort), 4, 1); err != nil {
 		return false, err
 	}
 
