@@ -42,6 +42,8 @@ func IsVirtualWorld() (bool, error) {
 
 // HypervisorPortCheck tests the availability of the HV port. This only works on kernel versions 2.6.18+.
 func HypervisorPortCheck() (bool, error) {
+	// We use 4 for the number of ports here in case there is no port to write
+	// to.  In that case, the operation attemps to write to 4b of memory.
 	if err := syscall.Ioperm(int(bdoor.BackdoorPort), 4, 1); err != nil {
 		return false, err
 	}
