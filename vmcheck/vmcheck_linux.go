@@ -21,6 +21,8 @@ import (
 	"github.com/vmware/vmw-guestinfo/bdoor"
 )
 
+// From https://github.com/intel-go/cpuid/blob/master/cpuidlow_amd64.s
+// Get the CPU ID low level leaf values.
 func cpuid_low(arg1, arg2 uint32) (eax, ebx, ecx, edx uint32)
 
 // IsVirtualWorld returns true if running in a VM.
