@@ -21,12 +21,12 @@ import (
 )
 
 func TestIsVirtualWorld(t *testing.T) {
-	isVm, err := hypervisorPortCheck()
+	isBackdoor, err := hypervisorPortCheck()
 	if !util.AssertNoError(t, err) {
 		return
 	}
 
-	t.Log("Backdoor available: ", isVm)
+	t.Log("Backdoor available: ", isBackdoor)
 	t.Log("CPU HV: ", CpuIsVM())
 
 	isVM, err := IsVirtualWorld()
