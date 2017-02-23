@@ -27,7 +27,7 @@ func TestIsVirtualWorld(t *testing.T) {
 	}
 
 	t.Log("Backdoor available: ", isBackdoor)
-	t.Log("CPU HV: ", CpuIsVM())
+	t.Log("CPU HV: ", IsVirtualCPU())
 
 	isVM, err := IsVirtualWorld()
 	if !util.AssertNoError(t, err) {
