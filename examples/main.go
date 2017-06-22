@@ -16,7 +16,7 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"log"
 
 	"github.com/vmware/vmw-guestinfo/rpcvmx"
 	"github.com/vmware/vmw-guestinfo/vmcheck"
@@ -25,12 +25,11 @@ import (
 func main() {
 	isVM, err := vmcheck.IsVirtualWorld()
 	if err != nil {
-		fmt.Println("error: %s", err.Error())
-		os.Exit(-1)
+		log.Fatalf("error: %s", err.Error())
 	}
 
 	if !isVM {
-		fmt.Println("not in a virtual world... :(")
+		log.Fatal("not in a virtual world... :(")
 	}
 
 	config := rpcvmx.NewConfig()
