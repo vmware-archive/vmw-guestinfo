@@ -66,12 +66,12 @@ func NewChannel(proto uint32) (*Channel, error) {
 retry:
 	bp := &bdoor.BackdoorProto{}
 
-	bp.BX.SetWord(proto | flags)
-	bp.CX.High = messageTypeOpen
-	bp.CX.Low = bdoor.CommandMessage
+	bp.BX.AsUInt32().SetWord(proto | flags)
+	bp.CX.AsUInt32().High = messageTypeOpen
+	bp.CX.AsUInt32().Low = bdoor.CommandMessage
 
 	out := bp.InOut()
-	if (out.CX.High & messageStatusSuccess) == 0 {
+	if (out.CX.AsUInt32().High & messageStatusSuccess) == 0 {
 		if flags != 0 {
 			flags = 0
 			goto retry
@@ -82,9 +82,9 @@ retry:
 	}
 
 	ch := &Channel{}
-	ch.id = out.DX.High
-	ch.cookie.High.SetWord(out.SI.Word())
-	ch.cookie.Low.SetWord(out.DI.Word())
+	ch.id = out.DX.AsUInt32().High
+	ch.cookie.High.SetWord(out.SI.AsUInt32().Word())
+	ch.cookie.Low.SetWord(out.DI.AsUInt32().Word())
 
 	Debugf("Opened channel %d", ch.id)
 	return ch, nil
@@ -93,15 +93,15 @@ retry:
 func (c *Channel) Close() error {
 	bp := &bdoor.BackdoorProto{}
 
-	bp.CX.High = messageTypeClose
-	bp.CX.Low = bdoor.CommandMessage
+	bp.CX.AsUInt32().High = messageTypeClose
+	bp.CX.AsUInt32().Low = bdoor.CommandMessage
 
-	bp.DX.High = c.id
-	bp.SI.SetWord(c.cookie.High.Word())
-	bp.DI.SetWord(c.cookie.Low.Word())
+	bp.DX.AsUInt32().High = c.id
+	bp.SI.AsUInt32().SetWord(c.cookie.High.Word())
+	bp.DI.AsUInt32().SetWord(c.cookie.Low.Word())
 
 	out := bp.InOut()
-	if (out.CX.High & messageStatusSuccess) == 0 {
+	if (out.CX.AsUInt32().High & messageStatusSuccess) == 0 {
 		Errorf("Message: Unable to close communication channel %d", c.id)
 		return ErrChannelClose
 	}
@@ -113,18 +113,18 @@ func (c *Channel) Close() error {
 func (c *Channel) Send(buf []byte) error {
 retry:
 	bp := &bdoor.BackdoorProto{}
-	bp.CX.High = messageTypeSendSize
-	bp.CX.Low = bdoor.CommandMessage
+	bp.CX.AsUInt32().High = messageTypeSendSize
+	bp.CX.AsUInt32().Low = bdoor.CommandMessage
 
-	bp.DX.High = c.id
-	bp.SI.SetWord(c.cookie.High.Word())
-	bp.DI.SetWord(c.cookie.Low.Word())
+	bp.DX.AsUInt32().High = c.id
+	bp.SI.AsUInt32().SetWord(c.cookie.High.Word())
+	bp.DI.AsUInt32().SetWord(c.cookie.Low.Word())
 
-	bp.BX.SetWord(uint32(len(buf)))
+	bp.BX.AsUInt32().SetWord(uint32(len(buf)))
 
 	// send the size
 	out := bp.InOut()
-	if (out.CX.High & messageStatusSuccess) == 0 {
+	if (out.CX.AsUInt32().High & messageStatusSuccess) == 0 {
 		Errorf("Message: Unable to send a message over the communication channel %d", c.id)
 		return ErrRpciSend
 	}
@@ -134,20 +134,20 @@ retry:
 		return nil
 	}
 
-	if !c.forceLowBW && (out.CX.High&messageStatusHighBW) == messageStatusHighBW {
+	if !c.forceLowBW && (out.CX.AsUInt32().High&messageStatusHighBW) == messageStatusHighBW {
 		hbbp := &bdoor.BackdoorProto{}
 
-		hbbp.BX.Low = bdoor.CommandHighBWMessage
-		hbbp.BX.High = messageStatusSuccess
-		hbbp.DX.High = c.id
-		hbbp.BP.SetWord(c.cookie.High.Word())
-		hbbp.DI.SetWord(c.cookie.Low.Word())
-		hbbp.CX.SetWord(uint32(len(buf)))
-		hbbp.SI.SetWord(uint32(uintptr(unsafe.Pointer(&buf[0]))))
+		hbbp.BX.AsUInt32().Low = bdoor.CommandHighBWMessage
+		hbbp.BX.AsUInt32().High = messageStatusSuccess
+		hbbp.DX.AsUInt32().High = c.id
+		hbbp.BP.AsUInt32().SetWord(c.cookie.High.Word())
+		hbbp.DI.AsUInt32().SetWord(c.cookie.Low.Word())
+		hbbp.CX.AsUInt32().SetWord(uint32(len(buf)))
+		hbbp.SI.SetPointer(unsafe.Pointer(&buf[0]))
 
 		out := hbbp.HighBandwidthOut()
-		if (out.BX.High & messageStatusSuccess) == 0 {
-			if (out.BX.High & messageStatusCheckPoint) != 0 {
+		if (out.BX.AsUInt32().High & messageStatusSuccess) == 0 {
+			if (out.BX.AsUInt32().High & messageStatusCheckPoint) != 0 {
 				Debugf("A checkpoint occurred. Retrying the operation")
 				goto retry
 			}
@@ -156,7 +156,7 @@ retry:
 			return ErrRpciSend
 		}
 	} else {
-		bp.CX.High = messageTypeSendPayload
+		bp.CX.AsUInt32().High = messageTypeSendPayload
 
 		bbuf := bytes.NewBuffer(buf)
 		for {
@@ -169,17 +169,17 @@ retry:
 			Debugf("sending %q over %d", string(words), c.id)
 			switch len(words) {
 			case 3:
-				bp.BX.SetWord(binary.LittleEndian.Uint32([]byte{0x0, words[2], words[1], words[0]}))
+				bp.BX.AsUInt32().SetWord(binary.LittleEndian.Uint32([]byte{0x0, words[2], words[1], words[0]}))
 			case 2:
-				bp.BX.SetWord(uint32(binary.LittleEndian.Uint16(words)))
+				bp.BX.AsUInt32().SetWord(uint32(binary.LittleEndian.Uint16(words)))
 			case 1:
-				bp.BX.SetWord(uint32(words[0]))
+				bp.BX.AsUInt32().SetWord(uint32(words[0]))
 			default:
-				bp.BX.SetWord(binary.LittleEndian.Uint32(words))
+				bp.BX.AsUInt32().SetWord(binary.LittleEndian.Uint32(words))
 			}
 
 			out = bp.InOut()
-			if (out.CX.High & messageStatusSuccess) == 0 {
+			if (out.CX.AsUInt32().High & messageStatusSuccess) == 0 {
 				Errorf("Message: Unable to send a message over the communication channel %d", c.id)
 				return ErrRpciSend
 			}
@@ -193,50 +193,50 @@ func (c *Channel) Receive() ([]byte, error) {
 retry:
 	var err error
 	bp := &bdoor.BackdoorProto{}
-	bp.CX.High = messageTypeReceiveSize
-	bp.CX.Low = bdoor.CommandMessage
+	bp.CX.AsUInt32().High = messageTypeReceiveSize
+	bp.CX.AsUInt32().Low = bdoor.CommandMessage
 
-	bp.DX.High = c.id
-	bp.SI.SetWord(c.cookie.High.Word())
-	bp.DI.SetWord(c.cookie.Low.Word())
+	bp.DX.AsUInt32().High = c.id
+	bp.SI.AsUInt32().SetWord(c.cookie.High.Word())
+	bp.DI.AsUInt32().SetWord(c.cookie.Low.Word())
 
 	out := bp.InOut()
-	if (out.CX.High & messageStatusSuccess) == 0 {
+	if (out.CX.AsUInt32().High & messageStatusSuccess) == 0 {
 		Errorf("Message: Unable to poll for messages over the communication channel %d", c.id)
 		return nil, ErrRpciReceive
 	}
 
-	if (out.CX.High & messageStatusDoRecieve) == 0 {
+	if (out.CX.AsUInt32().High & messageStatusDoRecieve) == 0 {
 		Debugf("No message to retrieve")
 		return nil, nil
 	}
 
 	// Receive the size.
-	if out.DX.High != messageTypeSendSize {
+	if out.DX.AsUInt32().High != messageTypeSendSize {
 		Errorf("Message: Protocol error. Expected a MESSAGE_TYPE_SENDSIZE request from vmware")
 		return nil, ErrRpciReceive
 	}
 
-	size := out.BX.Word()
+	size := out.BX.Value()
 
 	var buf []byte
 
 	if size != 0 {
-		if !c.forceLowBW && (out.CX.High&messageStatusHighBW == messageStatusHighBW) {
+		if !c.forceLowBW && (out.CX.AsUInt32().High&messageStatusHighBW == messageStatusHighBW) {
 			buf = make([]byte, size)
 
 			hbbp := &bdoor.BackdoorProto{}
 
-			hbbp.BX.Low = bdoor.CommandHighBWMessage
-			hbbp.BX.High = messageStatusSuccess
-			hbbp.DX.High = c.id
-			hbbp.SI.SetWord(c.cookie.High.Word())
-			hbbp.BP.SetWord(c.cookie.Low.Word())
-			hbbp.CX.SetWord(uint32(len(buf)))
-			hbbp.DI.SetWord(uint32(uintptr(unsafe.Pointer(&buf[0]))))
+			hbbp.BX.AsUInt32().Low = bdoor.CommandHighBWMessage
+			hbbp.BX.AsUInt32().High = messageStatusSuccess
+			hbbp.DX.AsUInt32().High = c.id
+			hbbp.SI.AsUInt32().SetWord(c.cookie.High.Word())
+			hbbp.BP.AsUInt32().SetWord(c.cookie.Low.Word())
+			hbbp.CX.AsUInt32().SetWord(uint32(len(buf)))
+			hbbp.DI.SetPointer(unsafe.Pointer(&buf[0]))
 
 			out := hbbp.HighBandwidthIn()
-			if (out.BX.High & messageStatusSuccess) == 0 {
+			if (out.BX.AsUInt32().High & messageStatusSuccess) == 0 {
 				Errorf("Message: Unable to send a message over the communication channel %d", c.id)
 				c.reply(messageTypeReceivePayload, messageStatusFail)
 				return nil, ErrRpciReceive
@@ -249,12 +249,12 @@ retry:
 					break
 				}
 
-				bp.CX.High = messageTypeReceivePayload
-				bp.BX.Low = messageStatusSuccess
+				bp.CX.AsUInt32().High = messageTypeReceivePayload
+				bp.BX.AsUInt32().Low = messageStatusSuccess
 
 				out = bp.InOut()
-				if (out.CX.High & messageStatusSuccess) == 0 {
-					if (out.CX.High & messageStatusCheckPoint) != 0 {
+				if (out.CX.AsUInt32().High & messageStatusSuccess) == 0 {
+					if (out.CX.AsUInt32().High & messageStatusCheckPoint) != 0 {
 						Debugf("A checkpoint occurred. Retrying the operation")
 						goto retry
 					}
@@ -264,34 +264,34 @@ retry:
 					return nil, ErrRpciReceive
 				}
 
-				if out.DX.High != messageTypeSendPayload {
+				if out.DX.AsUInt32().High != messageTypeSendPayload {
 					Errorf("Message: Protocol error. Expected a MESSAGE_TYPE_SENDPAYLOAD from vmware")
 					c.reply(messageTypeReceivePayload, messageStatusFail)
 					return nil, ErrRpciReceive
 				}
 
-				Debugf("Received %#v", out.BX.Word())
+				Debugf("Received %#v", out.BX.AsUInt32().Word())
 
 				switch size {
 				case 1:
-					err = binary.Write(b, binary.LittleEndian, uint8(out.BX.Low))
+					err = binary.Write(b, binary.LittleEndian, uint8(out.BX.AsUInt32().Low))
 					size = size - 1
 
 				case 2:
-					err = binary.Write(b, binary.LittleEndian, uint16(out.BX.Low))
+					err = binary.Write(b, binary.LittleEndian, uint16(out.BX.AsUInt32().Low))
 					size = size - 2
 
 				case 3:
-					err = binary.Write(b, binary.LittleEndian, uint16(out.BX.Low))
+					err = binary.Write(b, binary.LittleEndian, uint16(out.BX.AsUInt32().Low))
 					if err != nil {
 						c.reply(messageTypeReceivePayload, messageStatusFail)
 						return nil, ErrRpciReceive
 					}
-					err = binary.Write(b, binary.LittleEndian, uint8(out.BX.High))
+					err = binary.Write(b, binary.LittleEndian, uint8(out.BX.AsUInt32().High))
 					size = size - 3
 
 				default:
-					err = binary.Write(b, binary.LittleEndian, out.BX.Word())
+					err = binary.Write(b, binary.LittleEndian, out.BX.AsUInt32().Word())
 					size = size - 4
 				}
 
@@ -314,17 +314,17 @@ retry:
 func (c *Channel) reply(messageType, messageStatus uint16) {
 	bp := &bdoor.BackdoorProto{}
 
-	bp.BX.Low = messageStatus
-	bp.CX.High = messageType
-	bp.CX.Low = bdoor.CommandMessage
-	bp.DX.High = c.id
-	bp.SI.SetWord(c.cookie.High.Word())
-	bp.DI.SetWord(c.cookie.Low.Word())
+	bp.BX.AsUInt32().Low = messageStatus
+	bp.CX.AsUInt32().High = messageType
+	bp.CX.AsUInt32().Low = bdoor.CommandMessage
+	bp.DX.AsUInt32().High = c.id
+	bp.SI.AsUInt32().SetWord(c.cookie.High.Word())
+	bp.DI.AsUInt32().SetWord(c.cookie.Low.Word())
 
 	out := bp.InOut()
 
 	/* OUT: Status */
-	if (out.CX.High & messageStatusSuccess) == 0 {
+	if (out.CX.AsUInt32().High & messageStatusSuccess) == 0 {
 		if messageStatus == messageStatusSuccess {
 			Errorf("reply Message: Unable to send a message over the communication channel %d", c.id)
 		} else {
