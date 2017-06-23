@@ -15,16 +15,16 @@
 package bdoor
 
 const (
-	BackdoorMagic      = uint32(0x564D5868)
-	BackdoorPort       = uint16(0x5658)
-	BackdoorHighBWPort = uint16(0x5659)
-
-	CommandGetVersion = uint32(10)
-
-	CommandMessage       = uint16(0x1e)
-	CommandHighBWMessage = uint16(0)
-	CommandFlagCookie    = uint32(0x80000000)
+	BackdoorMagic = uint32(0x564D5868)
 )
+
+func setReg(reg UInt32, val uint32) {
+	reg.SetWord(val)
+}
+
+func getReg(reg UInt32) uint32 {
+	return reg.Word()
+}
 
 type BackdoorProto struct {
 	// typedef union {
@@ -54,81 +54,3 @@ func bdoor_inout(ax, bx, cx, dx, si, di, bp uint32) (retax, retbx, retcx, retdx,
 func bdoor_hbout(ax, bx, cx, dx, si, di, bp uint32) (retax, retbx, retcx, retdx, retsi, retdi, retbp uint32)
 func bdoor_hbin(ax, bx, cx, dx, si, di, bp uint32) (retax, retbx, retcx, retdx, retsi, retdi, retbp uint32)
 func bdoor_inout_test(ax, bx, cx, dx, si, di, bp uint32) (retax, retbx, retcx, retdx, retsi, retdi, retbp uint32)
-
-func (p *BackdoorProto) InOut() *BackdoorProto {
-	p.DX.Low = BackdoorPort
-	p.AX.SetWord(BackdoorMagic)
-
-	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_inout(
-		p.AX.Word(),
-		p.BX.Word(),
-		p.CX.Word(),
-		p.DX.Word(),
-		p.SI.Word(),
-		p.DI.Word(),
-		p.BP.Word(),
-	)
-
-	ret := &BackdoorProto{}
-	ret.AX.SetWord(retax)
-	ret.BX.SetWord(retbx)
-	ret.CX.SetWord(retcx)
-	ret.DX.SetWord(retdx)
-	ret.SI.SetWord(retsi)
-	ret.DI.SetWord(retdi)
-	ret.BP.SetWord(retbp)
-
-	return ret
-}
-
-func (p *BackdoorProto) HighBandwidthOut() *BackdoorProto {
-	p.DX.Low = BackdoorHighBWPort
-	p.AX.SetWord(BackdoorMagic)
-
-	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_hbout(
-		p.AX.Word(),
-		p.BX.Word(),
-		p.CX.Word(),
-		p.DX.Word(),
-		p.SI.Word(),
-		p.DI.Word(),
-		p.BP.Word(),
-	)
-
-	ret := &BackdoorProto{}
-	ret.AX.SetWord(retax)
-	ret.BX.SetWord(retbx)
-	ret.CX.SetWord(retcx)
-	ret.DX.SetWord(retdx)
-	ret.SI.SetWord(retsi)
-	ret.DI.SetWord(retdi)
-	ret.BP.SetWord(retbp)
-
-	return ret
-}
-
-func (p *BackdoorProto) HighBandwidthIn() *BackdoorProto {
-	p.DX.Low = BackdoorHighBWPort
-	p.AX.SetWord(BackdoorMagic)
-
-	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_hbin(
-		p.AX.Word(),
-		p.BX.Word(),
-		p.CX.Word(),
-		p.DX.Word(),
-		p.SI.Word(),
-		p.DI.Word(),
-		p.BP.Word(),
-	)
-
-	ret := &BackdoorProto{}
-	ret.AX.SetWord(retax)
-	ret.BX.SetWord(retbx)
-	ret.CX.SetWord(retcx)
-	ret.DX.SetWord(retdx)
-	ret.SI.SetWord(retsi)
-	ret.DI.SetWord(retdi)
-	ret.BP.SetWord(retbp)
-
-	return ret
-}
