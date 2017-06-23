@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ package vmcheck
 
 import (
 	"encoding/binary"
-	"syscall"
 
 	"github.com/vmware/vmw-guestinfo/bdoor"
 )
@@ -25,7 +24,7 @@ import (
 // Get the CPU ID low level leaf values.
 func cpuid_low(arg1, arg2 uint32) (eax, ebx, ecx, edx uint32)
 
-// IsVirtualWorld returns true if running in a VM.
+// IsVirtualWorld returns true if running in a VM and the backdoor is available.
 func IsVirtualWorld() (bool, error) {
 	// Test the HV bit is set
 	if !IsVirtualCPU() {
@@ -43,7 +42,7 @@ func IsVirtualWorld() (bool, error) {
 // hypervisorPortCheck tests the availability of the HV port.
 func hypervisorPortCheck() (bool, error) {
 	// Privilege level 3 to access all ports above 0x3ff
-	if err := syscall.Iopl(3); err != nil {
+	if err := openPortsAccess(); err != nil {
 		return false, err
 	}
 
@@ -55,12 +54,13 @@ func hypervisorPortCheck() (bool, error) {
 	return (0xffffffff != out.AX.Word()) && (0 != out.AX.Word()), nil
 }
 
-// IsVirtualCPU checks for the HV bit in the ECX register of the CPUID leaf 0x1.
-// Intel and AMD CPUs reserve this bit to indicate if the CPU is running
-// in a HV. See https://en.wikipedia.org/wiki/CPUID#EAX.3D1:_Processor_Info_and_Feature_Bits
+// IsVirtualCPU checks if the cpu is a virtual CPU running on ESX.  It checks for
+// the HV bit in the ECX register of the CPUID leaf 0x1.  Intel and AMD CPUs
+// reserve this bit to indicate if the CPU is running in a HV. See
+// https://en.wikipedia.org/wiki/CPUID#EAX.3D1:_Processor_Info_and_Feature_Bits
 // for details.  If this bit is set, the reserved cpuid levels are used to pass
 // information from the HV to the guest.  In ESX, this is the repeating string
-// VMwareVMware.
+// "VMwareVMware".
 func IsVirtualCPU() bool {
 	HV := uint32(1 << 31)
 	_, _, c, _ := cpuid_low(0x1, 0)
