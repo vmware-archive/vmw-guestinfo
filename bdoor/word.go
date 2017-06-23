@@ -41,3 +41,19 @@ func (u *UInt64) SetQuad(w uint64) {
 	u.High.SetWord(uint32(w >> 32))
 	u.Low.SetWord(uint32(w))
 }
+
+func (u *UInt64) Word() uint32 {
+	return u.Low.Word()
+}
+
+func (u *UInt64) SetWord(w uint32) {
+	u.Low.SetWord(w)
+}
+
+func (u *UInt64) HighWord() uint32 {
+	return u.High.Word()
+}
+
+func (u *UInt64) SetHighWord(w uint32) {
+	u.High.SetWord(w)
+}
