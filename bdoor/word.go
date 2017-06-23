@@ -19,6 +19,14 @@ type UInt32 struct {
 	Low  uint16
 }
 
+func (u *UInt32) Short() uint16 {
+	return u.Low
+}
+
+func (u *UInt32) SetShort(s uint16) {
+	u.Low = s
+}
+
 func (u *UInt32) Word() uint32 {
 	return uint32(u.High)<<16 + uint32(u.Low)
 }
@@ -33,13 +41,12 @@ type UInt64 struct {
 	Low  UInt32
 }
 
-func (u *UInt64) Quad() uint64 {
-	return uint64(u.High.Word())<<32 + uint64(u.Low.Word())
+func (u *UInt64) Short() uint16 {
+	return u.Low.Short()
 }
 
-func (u *UInt64) SetQuad(w uint64) {
-	u.High.SetWord(uint32(w >> 32))
-	u.Low.SetWord(uint32(w))
+func (u *UInt64) SetShort(s uint16) {
+	u.Low.SetShort(s)
 }
 
 func (u *UInt64) Word() uint32 {
@@ -50,10 +57,11 @@ func (u *UInt64) SetWord(w uint32) {
 	u.Low.SetWord(w)
 }
 
-func (u *UInt64) HighWord() uint32 {
-	return u.High.Word()
+func (u *UInt64) Quad() uint64 {
+	return uint64(u.High.Word())<<32 + uint64(u.Low.Word())
 }
 
-func (u *UInt64) SetHighWord(w uint32) {
-	u.High.SetWord(w)
+func (u *UInt64) SetQuad(w uint64) {
+	u.High.SetWord(uint32(w >> 32))
+	u.Low.SetWord(uint32(w))
 }
