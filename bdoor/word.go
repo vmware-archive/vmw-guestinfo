@@ -21,14 +21,6 @@ type UInt32 struct {
 	Low  uint16
 }
 
-func (u *UInt32) Short() uint16 {
-	return u.Low
-}
-
-func (u *UInt32) SetShort(s uint16) {
-	u.Low = s
-}
-
 func (u *UInt32) Word() uint32 {
 	return uint32(u.High)<<16 + uint32(u.Low)
 }
@@ -57,22 +49,6 @@ func (u *UInt32) SetPointer(p unsafe.Pointer) {
 type UInt64 struct {
 	High UInt32
 	Low  UInt32
-}
-
-func (u *UInt64) Short() uint16 {
-	return u.Low.Short()
-}
-
-func (u *UInt64) SetShort(s uint16) {
-	u.Low.SetShort(s)
-}
-
-func (u *UInt64) Word() uint32 {
-	return u.Low.Word()
-}
-
-func (u *UInt64) SetWord(w uint32) {
-	u.Low.SetWord(w)
 }
 
 func (u *UInt64) Quad() uint64 {

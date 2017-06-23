@@ -48,10 +48,10 @@ func hypervisorPortCheck() (bool, error) {
 
 	p := &bdoor.BackdoorProto{}
 
-	p.CX.SetWord(bdoor.CommandGetVersion)
+	p.CX.AsUInt32().SetWord(bdoor.CommandGetVersion)
 	out := p.InOut()
 	// if there is no device, we get back all 1s
-	return (0xffffffff != out.AX.Word()) && (0 != out.AX.Word()), nil
+	return (0xffffffff != out.AX.AsUInt32().Word()) && (0 != out.AX.AsUInt32().Word()), nil
 }
 
 // IsVirtualCPU checks if the cpu is a virtual CPU running on ESX.  It checks for

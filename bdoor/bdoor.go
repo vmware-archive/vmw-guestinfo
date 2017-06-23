@@ -26,7 +26,7 @@ const (
 )
 
 func (p *BackdoorProto) InOut() *BackdoorProto {
-	p.DX.SetShort(BackdoorPort)
+	p.DX.AsUInt32().Low = BackdoorPort
 	p.AX.SetValue(BackdoorMagic)
 
 	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_inout(
@@ -52,7 +52,7 @@ func (p *BackdoorProto) InOut() *BackdoorProto {
 }
 
 func (p *BackdoorProto) HighBandwidthOut() *BackdoorProto {
-	p.DX.SetShort(BackdoorHighBWPort)
+	p.DX.AsUInt32().Low = BackdoorHighBWPort
 	p.AX.SetValue(BackdoorMagic)
 
 	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_hbout(
@@ -78,7 +78,7 @@ func (p *BackdoorProto) HighBandwidthOut() *BackdoorProto {
 }
 
 func (p *BackdoorProto) HighBandwidthIn() *BackdoorProto {
-	p.DX.SetShort(BackdoorHighBWPort)
+	p.DX.AsUInt32().Low = BackdoorHighBWPort
 	p.AX.SetValue(BackdoorMagic)
 
 	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_hbin(
