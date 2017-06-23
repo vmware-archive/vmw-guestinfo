@@ -46,6 +46,10 @@ func (u *UInt32) Value() uint32 {
 	return u.Word()
 }
 
+func (u *UInt32) SetValue(val uint32) {
+	u.SetWord(val)
+}
+
 func (u *UInt32) SetPointer(p unsafe.Pointer) {
 	u.SetWord(uint32(uintptr(p)))
 }
@@ -86,6 +90,10 @@ func (u *UInt64) AsUInt32() *UInt32 {
 
 func (u *UInt64) Value() uint64 {
 	return u.Quad()
+}
+
+func (u *UInt64) SetValue(val uint64) {
+	u.SetQuad(val)
 }
 
 func (u *UInt64) SetPointer(p unsafe.Pointer) {

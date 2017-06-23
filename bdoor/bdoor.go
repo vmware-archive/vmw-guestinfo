@@ -27,78 +27,78 @@ const (
 
 func (p *BackdoorProto) InOut() *BackdoorProto {
 	p.DX.SetShort(BackdoorPort)
-	setReg(p.AX, BackdoorMagic)
+	p.AX.SetValue(BackdoorMagic)
 
 	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_inout(
-		getReg(p.AX),
-		getReg(p.BX),
-		getReg(p.CX),
-		getReg(p.DX),
-		getReg(p.SI),
-		getReg(p.DI),
-		getReg(p.BP),
+		p.AX.Value(),
+		p.BX.Value(),
+		p.CX.Value(),
+		p.DX.Value(),
+		p.SI.Value(),
+		p.DI.Value(),
+		p.BP.Value(),
 	)
 
 	ret := &BackdoorProto{}
-	setReg(ret.AX, retax)
-	setReg(ret.BX, retbx)
-	setReg(ret.CX, retcx)
-	setReg(ret.DX, retdx)
-	setReg(ret.SI, retsi)
-	setReg(ret.DI, retdi)
-	setReg(ret.BP, retbp)
+	ret.AX.SetValue(retax)
+	ret.BX.SetValue(retbx)
+	ret.CX.SetValue(retcx)
+	ret.DX.SetValue(retdx)
+	ret.SI.SetValue(retsi)
+	ret.DI.SetValue(retdi)
+	ret.BP.SetValue(retbp)
 
 	return ret
 }
 
 func (p *BackdoorProto) HighBandwidthOut() *BackdoorProto {
 	p.DX.SetShort(BackdoorHighBWPort)
-	setReg(p.AX, BackdoorMagic)
+	p.AX.SetValue(BackdoorMagic)
 
 	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_hbout(
-		getReg(p.AX),
-		getReg(p.BX),
-		getReg(p.CX),
-		getReg(p.DX),
-		getReg(p.SI),
-		getReg(p.DI),
-		getReg(p.BP),
+		p.AX.Value(),
+		p.BX.Value(),
+		p.CX.Value(),
+		p.DX.Value(),
+		p.SI.Value(),
+		p.DI.Value(),
+		p.BP.Value(),
 	)
 
 	ret := &BackdoorProto{}
-	setReg(ret.AX, retax)
-	setReg(ret.BX, retbx)
-	setReg(ret.CX, retcx)
-	setReg(ret.DX, retdx)
-	setReg(ret.SI, retsi)
-	setReg(ret.DI, retdi)
-	setReg(ret.BP, retbp)
+	ret.AX.SetValue(retax)
+	ret.BX.SetValue(retbx)
+	ret.CX.SetValue(retcx)
+	ret.DX.SetValue(retdx)
+	ret.SI.SetValue(retsi)
+	ret.DI.SetValue(retdi)
+	ret.BP.SetValue(retbp)
 
 	return ret
 }
 
 func (p *BackdoorProto) HighBandwidthIn() *BackdoorProto {
 	p.DX.SetShort(BackdoorHighBWPort)
-	setReg(p.AX, BackdoorMagic)
+	p.AX.SetValue(BackdoorMagic)
 
 	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_hbin(
-		getReg(p.AX),
-		getReg(p.BX),
-		getReg(p.CX),
-		getReg(p.DX),
-		getReg(p.SI),
-		getReg(p.DI),
-		getReg(p.BP),
+		p.AX.Value(),
+		p.BX.Value(),
+		p.CX.Value(),
+		p.DX.Value(),
+		p.SI.Value(),
+		p.DI.Value(),
+		p.BP.Value(),
 	)
 
 	ret := &BackdoorProto{}
-	setReg(ret.AX, retax)
-	setReg(ret.BX, retbx)
-	setReg(ret.CX, retcx)
-	setReg(ret.DX, retdx)
-	setReg(ret.SI, retsi)
-	setReg(ret.DI, retdi)
-	setReg(ret.BP, retbp)
+	ret.AX.SetValue(retax)
+	ret.BX.SetValue(retbx)
+	ret.CX.SetValue(retcx)
+	ret.DX.SetValue(retdx)
+	ret.SI.SetValue(retsi)
+	ret.DI.SetValue(retdi)
+	ret.BP.SetValue(retbp)
 
 	return ret
 }

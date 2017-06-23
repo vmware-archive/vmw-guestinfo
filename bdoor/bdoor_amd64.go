@@ -18,14 +18,6 @@ const (
 	BackdoorMagic = uint64(0x564D5868)
 )
 
-func setReg(reg UInt64, val uint64) {
-	reg.SetQuad(val)
-}
-
-func getReg(reg UInt64) uint64 {
-	return reg.Quad()
-}
-
 type BackdoorProto struct {
 	// typedef union {
 	//   struct {
