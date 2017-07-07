@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,15 +15,7 @@
 package bdoor
 
 const (
-	BackdoorMagic      = uint64(0x564D5868)
-	BackdoorPort       = uint16(0x5658)
-	BackdoorHighBWPort = uint16(0x5659)
-
-	CommandGetVersion = uint32(10)
-
-	CommandMessage       = uint16(0x1e)
-	CommandHighBWMessage = uint16(0)
-	CommandFlagCookie    = uint32(0x80000000)
+	BackdoorMagic = uint64(0x564D5868)
 )
 
 type BackdoorProto struct {
@@ -54,81 +46,3 @@ func bdoor_inout(ax, bx, cx, dx, si, di, bp uint64) (retax, retbx, retcx, retdx,
 func bdoor_hbout(ax, bx, cx, dx, si, di, bp uint64) (retax, retbx, retcx, retdx, retsi, retdi, retbp uint64)
 func bdoor_hbin(ax, bx, cx, dx, si, di, bp uint64) (retax, retbx, retcx, retdx, retsi, retdi, retbp uint64)
 func bdoor_inout_test(ax, bx, cx, dx, si, di, bp uint64) (retax, retbx, retcx, retdx, retsi, retdi, retbp uint64)
-
-func (p *BackdoorProto) InOut() *BackdoorProto {
-	p.DX.Low.Low = BackdoorPort
-	p.AX.SetQuad(BackdoorMagic)
-
-	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_inout(
-		p.AX.Quad(),
-		p.BX.Quad(),
-		p.CX.Quad(),
-		p.DX.Quad(),
-		p.SI.Quad(),
-		p.DI.Quad(),
-		p.BP.Quad(),
-	)
-
-	ret := &BackdoorProto{}
-	ret.AX.SetQuad(retax)
-	ret.BX.SetQuad(retbx)
-	ret.CX.SetQuad(retcx)
-	ret.DX.SetQuad(retdx)
-	ret.SI.SetQuad(retsi)
-	ret.DI.SetQuad(retdi)
-	ret.BP.SetQuad(retbp)
-
-	return ret
-}
-
-func (p *BackdoorProto) HighBandwidthOut() *BackdoorProto {
-	p.DX.Low.Low = BackdoorHighBWPort
-	p.AX.SetQuad(BackdoorMagic)
-
-	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_hbout(
-		p.AX.Quad(),
-		p.BX.Quad(),
-		p.CX.Quad(),
-		p.DX.Quad(),
-		p.SI.Quad(),
-		p.DI.Quad(),
-		p.BP.Quad(),
-	)
-
-	ret := &BackdoorProto{}
-	ret.AX.SetQuad(retax)
-	ret.BX.SetQuad(retbx)
-	ret.CX.SetQuad(retcx)
-	ret.DX.SetQuad(retdx)
-	ret.SI.SetQuad(retsi)
-	ret.DI.SetQuad(retdi)
-	ret.BP.SetQuad(retbp)
-
-	return ret
-}
-
-func (p *BackdoorProto) HighBandwidthIn() *BackdoorProto {
-	p.DX.Low.Low = BackdoorHighBWPort
-	p.AX.SetQuad(BackdoorMagic)
-
-	retax, retbx, retcx, retdx, retsi, retdi, retbp := bdoor_hbin(
-		p.AX.Quad(),
-		p.BX.Quad(),
-		p.CX.Quad(),
-		p.DX.Quad(),
-		p.SI.Quad(),
-		p.DI.Quad(),
-		p.BP.Quad(),
-	)
-
-	ret := &BackdoorProto{}
-	ret.AX.SetQuad(retax)
-	ret.BX.SetQuad(retbx)
-	ret.CX.SetQuad(retcx)
-	ret.DX.SetQuad(retdx)
-	ret.SI.SetQuad(retsi)
-	ret.DI.SetQuad(retdi)
-	ret.BP.SetQuad(retbp)
-
-	return ret
-}

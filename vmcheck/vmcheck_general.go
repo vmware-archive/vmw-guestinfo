@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build !linux
+
 package vmcheck
 
-import (
-	"testing"
-
-	"github.com/vmware/vmw-guestinfo/util"
-)
-
-func TestIsVirtualWorld(t *testing.T) {
-	isBackdoor, err := hypervisorPortCheck()
-	if !util.AssertNoError(t, err) {
-		return
-	}
-
-	t.Log("Backdoor available: ", isBackdoor)
-	t.Log("CPU HV: ", IsVirtualCPU())
-
-	isVM, err := IsVirtualWorld()
-	if !util.AssertNoError(t, err) {
-		return
-	}
-	t.Log("Running in a VM: ", isVM)
+// probably not gonna work. Instead, implement a platform-specific variant, and
+// add the platform to above build flags
+func openPortsAccess() error {
+	return nil
 }
