@@ -21,7 +21,7 @@ import (
 )
 
 func TestIsVirtualWorld(t *testing.T) {
-	isBackdoor, err := hypervisorPortCheck()
+	isBackdoor, err := defaultPlatform.hypervisorPortCheck()
 	internal.AssertNoError(t, err)
 
 	t.Log("Backdoor available: ", isBackdoor)
