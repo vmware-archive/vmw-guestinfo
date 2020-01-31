@@ -17,7 +17,7 @@ package bdoor
 import (
 	"testing"
 
-	"github.com/vmware/vmw-guestinfo/util"
+	"github.com/vmware/vmw-guestinfo/internal"
 )
 
 func TestBdoorArgAlignment(t *testing.T) {
@@ -31,13 +31,11 @@ func TestBdoorArgAlignment(t *testing.T) {
 
 	oa, ob, oc, od, osi, odi, obp := bdoor_inout_test(a, b, c, d, si, di, bp)
 
-	if !util.AssertEqual(t, a, oa) ||
-		!util.AssertEqual(t, b, ob) ||
-		!util.AssertEqual(t, c, oc) ||
-		!util.AssertEqual(t, d, od) ||
-		!util.AssertEqual(t, si, osi) ||
-		!util.AssertEqual(t, di, odi) ||
-		!util.AssertEqual(t, bp, obp) {
-		return
-	}
+	internal.AssertEqual(t, a, oa)
+	internal.AssertEqual(t, b, ob)
+	internal.AssertEqual(t, c, oc)
+	internal.AssertEqual(t, d, od)
+	internal.AssertEqual(t, si, osi)
+	internal.AssertEqual(t, di, odi)
+	internal.AssertEqual(t, bp, obp)
 }

@@ -17,7 +17,7 @@ package bdoor
 import (
 	"testing"
 
-	"github.com/vmware/vmw-guestinfo/util"
+	"github.com/vmware/vmw-guestinfo/internal"
 )
 
 func TestSetWord(t *testing.T) {
@@ -29,11 +29,8 @@ func TestSetWord(t *testing.T) {
 	out.Low = inLow
 	out.High = inHigh
 
-	if !util.AssertEqual(t, inLow, out.Low) || !util.AssertEqual(t, inHigh, out.High) {
-		return
-	}
+	internal.AssertEqual(t, inLow, out.Low)
+	internal.AssertEqual(t, inHigh, out.High)
 
-	if !util.AssertEqual(t, uint32(0xBBBBEEFF), out.Word()) {
-		return
-	}
+	internal.AssertEqual(t, uint32(0xBBBBEEFF), out.Word())
 }

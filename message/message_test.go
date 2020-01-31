@@ -18,7 +18,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/vmware/vmw-guestinfo/util"
+	"github.com/vmware/vmw-guestinfo/internal"
 	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
 
@@ -36,53 +36,37 @@ func TestOpenClose(t *testing.T) {
 	}
 
 	ch, err := NewChannel(rpciProtocolNum)
-	if !util.AssertNotNil(t, ch) || !util.AssertNoError(t, err) {
-		return
-	}
+	internal.AssertNotNil(t, ch)
+	internal.AssertNoError(t, err)
 
 	// check low bandwidth
 	ch.forceLowBW = true
 	err = ch.Send([]byte("info-get guestinfo.doesnotexistdoesnotexit"))
-	if !util.AssertNoError(t, err) {
-		return
-	}
+	internal.AssertNoError(t, err)
 
 	b, err := ch.Receive()
-	if !util.AssertNoError(t, err) || !util.AssertNotNil(t, b) {
-		return
-	}
+	internal.AssertNoError(t, err)
+	internal.AssertNotNil(t, b)
 
-	if !util.AssertEqual(t, "0 No value found", string(b)) {
-		return
-	}
+	internal.AssertEqual(t, "0 No value found", string(b))
 
-	if !util.AssertNoError(t, ch.Close()) {
-		return
-	}
+	internal.AssertNoError(t, ch.Close())
 
 	// check high bandwidth
 	ch, err = NewChannel(rpciProtocolNum)
-	if !util.AssertNotNil(t, ch) || !util.AssertNoError(t, err) {
-		return
-	}
+	internal.AssertNotNil(t, ch)
+	internal.AssertNoError(t, err)
 
 	err = ch.Send([]byte("info-get guestinfo.doesnotexistdoesnotexit"))
-	if !util.AssertNoError(t, err) {
-		return
-	}
+	internal.AssertNoError(t, err)
 
 	b, err = ch.Receive()
-	if !util.AssertNoError(t, err) || !util.AssertNotNil(t, b) {
-		return
-	}
+	internal.AssertNoError(t, err)
+	internal.AssertNotNil(t, b)
 
-	if !util.AssertEqual(t, "0 No value found", string(b)) {
-		return
-	}
+	internal.AssertEqual(t, "0 No value found", string(b))
 
-	if !util.AssertNoError(t, ch.Close()) {
-		return
-	}
+	internal.AssertNoError(t, ch.Close())
 }
 
 // Test we can reply to the rpcin
@@ -102,10 +86,9 @@ func TestReset(t *testing.T) {
 	}
 
 	ch, err := NewChannel(tcloProtocol)
-	if !util.AssertNotNil(t, ch) || !util.AssertNoError(t, err) {
-		return
-	}
+	internal.AssertNotNil(t, ch)
 	defer ch.Close()
+	internal.AssertNoError(t, err)
 
 	var buf []byte
 
@@ -124,7 +107,5 @@ func TestReset(t *testing.T) {
 
 	reply := "OK ATR toolbox"
 	err = ch.Send([]byte(reply))
-	if !util.AssertNoError(t, err) {
-		return
-	}
+	internal.AssertNoError(t, err)
 }

@@ -12,47 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package internal
 
 import (
 	"reflect"
-	"runtime"
 	"testing"
 )
 
 // Test utilities.
 
-func AssertEqual(t *testing.T, a interface{}, b interface{}) bool {
+func AssertEqual(t *testing.T, a interface{}, b interface{}) {
+	t.Helper()
 	if !reflect.DeepEqual(a, b) {
-		Fail(t)
-		return false
+		t.FailNow()
 	}
-
-	return true
 }
 
-func AssertNoError(t *testing.T, err error) bool {
+func AssertNoError(t *testing.T, err error) {
+	t.Helper()
 	if err != nil {
-		t.Logf("error :%s", err.Error())
-		Fail(t)
-		return false
+		t.Fatal(err)
 	}
-
-	return true
 }
 
-func AssertNotNil(t *testing.T, a interface{}) bool {
+func AssertNotNil(t *testing.T, a interface{}) {
+	t.Helper()
 	val := reflect.ValueOf(a)
 	if val.IsNil() {
-		Fail(t)
-		return false
+		t.FailNow()
 	}
-
-	return true
-}
-
-func Fail(t *testing.T) {
-	_, file, line, _ := runtime.Caller(2)
-	t.Logf("FAIL on %s:%d", file, line)
-	t.Fail()
 }
