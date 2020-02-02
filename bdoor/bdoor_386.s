@@ -84,11 +84,11 @@ TEXT ·bdoor_hbin(SB), NOSPLIT|WRAPPER, $0
 
 	MOVL AX, retax+28(FP)
 	MOVL BX, retbx+32(FP)
-	MOVL CX, retcx+40(FP)
-	MOVL DX, retdx+44(FP)
-	MOVL SI, retsi+48(FP)
-	MOVL DI, retdi+52(FP)
-	MOVL BP, retbp+56(FP)
+	MOVL CX, retcx+36(FP)
+	MOVL DX, retdx+40(FP)
+	MOVL SI, retsi+44(FP)
+	MOVL DI, retdi+48(FP)
+	MOVL BP, retbp+52(FP)
 	RET
 
 // func bdoor_inout_test(ax, bx, cx, dx, si, di, bp uint32) (retax, retbx, retcx, retdx, retsi, retdi, retbp uint32)
