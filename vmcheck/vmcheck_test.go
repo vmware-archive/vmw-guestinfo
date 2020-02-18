@@ -17,21 +17,17 @@ package vmcheck
 import (
 	"testing"
 
-	"github.com/vmware/vmw-guestinfo/util"
+	"github.com/vmware/vmw-guestinfo/internal"
 )
 
 func TestIsVirtualWorld(t *testing.T) {
 	isBackdoor, err := hypervisorPortCheck()
-	if !util.AssertNoError(t, err) {
-		return
-	}
+	internal.AssertNoError(t, err)
 
 	t.Log("Backdoor available: ", isBackdoor)
 	t.Log("CPU HV: ", IsVirtualCPU())
 
 	isVM, err := IsVirtualWorld()
-	if !util.AssertNoError(t, err) {
-		return
-	}
+	internal.AssertNoError(t, err)
 	t.Log("Running in a VM: ", isVM)
 }
