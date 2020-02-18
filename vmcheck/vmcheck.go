@@ -32,11 +32,7 @@ func IsVirtualWorld() (bool, error) {
 	}
 
 	// Test if backdoor port is available.
-	if isVM, err := hypervisorPortCheck(); err != nil || !isVM {
-		return isVM, err
-	}
-
-	return true, nil
+	return hypervisorPortCheck()
 }
 
 // hypervisorPortCheck tests the availability of the HV port.
