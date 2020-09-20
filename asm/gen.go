@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/mmcloughlin/avo/build"
+	"github.com/mmcloughlin/avo/buildtags"
 	"github.com/mmcloughlin/avo/gotypes"
 	"github.com/mmcloughlin/avo/ir"
 )
@@ -85,6 +86,8 @@ func GenAsm(f AvoMainFunc) {
 		Context: build.NewContext(),
 		Arch:    arch,
 	}
+
+	ctx.Constraint(buildtags.Opt("gc"))
 
 	if err := f(ctx); err != nil {
 		log.Fatal(err)
