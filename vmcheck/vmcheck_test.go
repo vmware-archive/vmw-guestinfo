@@ -68,7 +68,7 @@ func TestVirtualWorld(t *testing.T) {
 					return false, tt.bdoorKnock
 				},
 			}
-			v, err := p.isVirtualWorld()
+			v, err := p.isVirtualWorld(false)
 			if tt.resp {
 				if !v || err != nil {
 					t.Fatal("expected to be virtual")

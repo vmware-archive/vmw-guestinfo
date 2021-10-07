@@ -38,7 +38,7 @@ func init() {
 
 func main() {
 
-	isVM, err := vmcheck.IsVirtualWorld()
+	isVM, err := vmcheck.IsVirtualWorld(true)
 	if err != nil {
 		log.Fatalf("Error: %s", err)
 	}
