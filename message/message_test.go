@@ -29,7 +29,7 @@ func TestOpenClose(t *testing.T) {
 	l := DefaultLogger.(*logger)
 	l.DebugLevel = true
 
-	isVm, err := vmcheck.IsVirtualWorld()
+	isVm, err := vmcheck.IsVirtualWorld(true)
 	if err != nil || !isVm {
 		t.Skip("Not in a virtual world")
 		return
@@ -74,7 +74,7 @@ func TestReset(t *testing.T) {
 	l := DefaultLogger.(*logger)
 	l.DebugLevel = true
 
-	isVm, err := vmcheck.IsVirtualWorld()
+	isVm, err := vmcheck.IsVirtualWorld(true)
 	if err != nil || !isVm {
 		t.Skip("Not in a virtual world")
 		return
